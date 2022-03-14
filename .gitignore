@@ -1,0 +1,5 @@
+masif_npi/npys/*
+masif_npi/runs/*
+masif_npi/models/*
+models/*
+.ipynb_checkpoints/
