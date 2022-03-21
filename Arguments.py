@@ -51,8 +51,14 @@ parser.add_argument(
 parser.add_argument(
     "--atom_dims",
     type=int,
-    default=4,
-    help="Number of atom types and dimension of resulting chemical features",
+    default=5,
+    help="Number of atom types",
+)
+parser.add_argument(
+    "--chem_dims",
+    type=int,
+    default=6,
+    help="Number of resulting chemical features",
 )
 parser.add_argument(
     "--emb_dims",
@@ -94,7 +100,7 @@ parser.add_argument(
     "--k",
     type=int,
     default=40,
-    help="Number of nearset neighbours for DGCNN and PointNet++",
+    help="Number of nearest neighbours for DGCNN and PointNet++",
 )
 parser.add_argument(
     "--dropout",

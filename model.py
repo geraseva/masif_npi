@@ -53,7 +53,7 @@ def get_atom_features(x, y, x_batch, y_batch, y_atomtype, k=16):
 class Atom_embedding(nn.Module):
     def __init__(self, args):
         super(Atom_embedding, self).__init__()
-        self.D = args.atom_dims
+        self.D = args.chem_dims
         self.k = 16
         self.conv1 = nn.Linear(self.D + 1, self.D)
         self.conv2 = nn.Linear(self.D, self.D)
@@ -87,11 +87,11 @@ class AtomNet(nn.Module):
         self.args = args
 
         self.transform_types = nn.Sequential(
-            nn.Linear(args.atom_dims, args.atom_dims),
+            nn.Linear(args.atom_dims, args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.atom_dims, args.atom_dims),
+            nn.Linear(args.chem_dims, args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.atom_dims, args.atom_dims),
+            nn.Linear(args.chem_dims, args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
         )
         self.embed = Atom_embedding(args)
@@ -105,7 +105,7 @@ class AtomNet(nn.Module):
 class Atom_embedding_MP(nn.Module):
     def __init__(self, args):
         super(Atom_embedding_MP, self).__init__()
-        self.D = args.atom_dims
+        self.D = args.chem_dims
         self.k = 16
         self.n_layers = 3
         self.mlp = nn.ModuleList(
@@ -146,7 +146,7 @@ class Atom_embedding_MP(nn.Module):
 class Atom_Atom_embedding_MP(nn.Module):
     def __init__(self, args):
         super(Atom_Atom_embedding_MP, self).__init__()
-        self.D = args.atom_dims
+        self.D = args.chem_dims
         self.k = 17
         self.n_layers = 3
 
@@ -197,7 +197,7 @@ class AtomNet_MP(nn.Module):
         self.transform_types = nn.Sequential(
             nn.Linear(args.atom_dims, args.atom_dims),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.atom_dims, args.atom_dims),
+            nn.Linear(args.atom_dims, args.chem_dims),
         )
 
         self.embed = Atom_embedding_MP(args)
@@ -296,6 +296,7 @@ class dMaSIF(nn.Module):
         self.args = args
 
         I = args.in_channels
+        I = len(args.curvature_scales)*2+args.chem_dims
         O = args.orientation_units
         E = args.emb_dims
         H = args.post_units

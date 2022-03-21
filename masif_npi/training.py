@@ -2,7 +2,7 @@
 # Standard imports:
 import numpy as np
 import torch
-#from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import random_split
 from torch_geometric.loader import DataLoader
 from torch_geometric.transforms import Compose
@@ -20,7 +20,7 @@ import gc
 
 # Parse the arguments, prepare the TensorBoard writer:
 args = parser.parse_args()
-#writer = SummaryWriter("runs/{}".format(args.experiment_name))
+writer = SummaryWriter("runs/{}".format(args.experiment_name))
 model_path = "models/" + args.experiment_name
 torch.cuda.set_device(args.device)
 
@@ -128,7 +128,7 @@ for i in range(starting_epoch, args.n_epochs):
             optimizer,
             args,
             test=test,
-            summary_writer=None,
+            summary_writer=writer,
             epoch_number=i,
         )
 
@@ -143,11 +143,11 @@ for i in range(starting_epoch, args.n_epochs):
                 "Distance/Negatives",
                 "Matching ROC-AUC",
             ]:
-               # writer.add_scalar(f"{key}/{suffix}", np.mean(val), i)
+                writer.add_scalar(f"{key}/{suffix}", np.mean(val), i)
                 print(key ,suffix , i, np.mean(val))
             if "R_values/" in key:
                 val = np.array(val)
-               # writer.add_scalar(f"{key}/{suffix}", np.mean(val[val > 0]), i)
+                writer.add_scalar(f"{key}/{suffix}", np.mean(val[val > 0]), i)
 
         if dataset_type == "Validation":  # Store validation loss for saving the model
             val_loss = np.mean(info["Loss"])
