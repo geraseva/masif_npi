@@ -117,9 +117,20 @@ def save_protein_batch_single(protein_pair_id, P, save_path, pdb_idx):
     embedding = P["embedding_1"] if pdb_idx == 1 else P["embedding_2"]
     emb_id = 1 if pdb_idx == 1 else 2
 
-    predictions = torch.sigmoid(P["iface_preds"]) if "iface_preds" in P.keys() else 0.0*embedding[:,0].view(-1, 1)
+    if "iface_preds" in P.keys():
+        if P["iface_preds"].shape[1]==1:
+            predictions = torch.sigmoid(P["iface_preds"])
+        else: 
+            predictions = F.softmax(P["iface_preds"], dim=1)
 
-    labels = P["labels"].view(-1, 1) if P["labels"] is not None else 0.0 * predictions
+    else:
+        0.0*embedding[:,0].view(-1, 1)
+
+    if predictions.shape[1]==1:
+        labels = P["labels"] if P["labels"] is not None else 0.0 * predictions
+    else:
+        labels = F.one_hot(P["labels"],predictions.shape[1]) if P["labels"] is not None else 0.0 * predictions
+
 
     coloring = torch.cat([inputs, embedding, predictions, labels], axis=1)
 
@@ -164,7 +175,7 @@ def project_npi_labels(P1, P2, threshold=5.0):
     D_ij.ranges = diagonal_ranges(batch_queries, batch_source)
     nn_i = D_ij.argmin(dim=1).view(-1).detach()   # (N,)
     nn_dist_i = (
-        D_ij.min(dim=1).view(-1) < threshold
+        D_ij.min(dim=1).view(-1) < threshold**2
     )  # If chain is not connected because of missing densities MaSIF cut out a part of the protein
     
     query_labels = torch.take(labels,nn_i)
@@ -479,9 +490,9 @@ def iterate(
             )
             torch.cuda.synchronize()
             iteration_time = time.time() - iteration_time
-            del outputs
-            del P1
-            del P2
+            #del outputs
+            #del P1
+            #del P2
 
     # Turn a list of dicts into a dict of lists:
     newdict = {}

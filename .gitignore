@@ -3,3 +3,8 @@ masif_npi/runs/*
 masif_npi/models/*
 models/*
 .ipynb_checkpoints/
+Untitled1.ipynb
+data_preprocessing/npys/*
+data_preprocessing/__pycache__/*
+masif_pymol_plugin/__pycache__/*
+preds/*

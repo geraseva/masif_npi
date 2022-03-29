@@ -28,6 +28,7 @@ if not Path("models/").exists():
     Path("models/").mkdir(exist_ok=False)
 
 # Ensure reproducibility:
+torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.deterministic = True
 torch.manual_seed(args.seed)
 torch.cuda.manual_seed_all(args.seed)
@@ -97,9 +98,9 @@ best_loss = 1e10  # We save the "best model so far"
 
 starting_epoch = 0
 if args.restart_training != "":
-    checkpoint = torch.load("models/" + args.restart_training)
-    net.load_state_dict(checkpoint["model_state_dict"], map_location=args.device)
-    optimizer.load_state_dict(checkpoint["optimizer_state_dict"], map_location=args.device)
+    checkpoint = torch.load("models/" + args.restart_training, map_location=args.device)
+    net.load_state_dict(checkpoint["model_state_dict"])
+    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     starting_epoch = checkpoint["epoch"]
     best_loss = checkpoint["best_loss"]
 

@@ -300,6 +300,7 @@ class dMaSIF(nn.Module):
         O = args.orientation_units
         E = args.emb_dims
         H = args.post_units
+        C = args.n_outputs
 
         # Computes chemical features
         self.atomnet = AtomNet_MP(args)
@@ -364,7 +365,7 @@ class dMaSIF(nn.Module):
                 nn.LeakyReLU(negative_slope=0.2),
                 nn.Linear(H, H),
                 nn.LeakyReLU(negative_slope=0.2),
-                nn.Linear(H, 5),
+                nn.Linear(H, C),
             )
 
     def features(self, P, i=1):
