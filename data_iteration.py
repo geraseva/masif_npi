@@ -3,8 +3,9 @@ import numpy as np
 from helper import *
 import torch.nn as nn
 import torch.nn.functional as F
+from torchgeometry.losses import focal_loss
 import torch.autograd.profiler as profiler
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, roc_curve
 from pathlib import Path
 import math
 from tqdm import tqdm
@@ -277,11 +278,13 @@ def compute_loss(args, P1, P2, n_points_sample=16):
     preds_concat = torch.cat([pos_preds, neg_preds])
     labels_concat = torch.cat([pos_labels, neg_labels])
 
-    if args.npi:
+    if args.loss=='CELoss':
         loss = F.cross_entropy(preds_concat, labels_concat)
-
-    else:
+    elif args.loss=='BCELoss':
         loss = F.binary_cross_entropy_with_logits(preds_concat, labels_concat)
+    elif args.loss=='FocalLoss':
+        loss = focal_loss(preds_concat, labels_concat)
+
 
     return loss, preds_concat, labels_concat
 
@@ -323,6 +326,7 @@ def iterate(
     pdb_ids=None,
     summary_writer=None,
     epoch_number=None,
+    roccurve=False
 ):
     """Goes through one epoch of the dataset, returns information for Tensorboard."""
 
@@ -456,12 +460,22 @@ def iterate(
             try:
                 if sampled_labels is not None:
                     if args.npi:
+                        a=np.rint(numpy(sampled_labels))
+                        b=numpy(F.softmax(sampled_preds, dim=1))
                         roc_auc = roc_auc_score(
-                            np.rint(numpy(sampled_labels)),
-                            numpy(F.softmax(sampled_preds, dim=1)),
-                            multi_class='ovo', 
-                            labels=[0,1,2,3,4]
+                            a,b, multi_class='ovo', 
+                            labels=list(range(args.n_outputs))
                         )
+                        if roccurve:
+                            tp=[]
+                            fp=[]
+                            for i in range(args.n_outputs):
+                                tpr, fpr, _=roc_curve(a==i, b[:,i])
+                                tp.append(tpr)
+                                fp.append(fpr)
+                            tp=np.array(tp)
+                            fp=np.array(fp)
+
                     else:
                         roc_auc = roc_auc_score(
                             np.rint(numpy(sampled_labels.view(-1))),
@@ -486,6 +500,7 @@ def iterate(
                     },
                     # Merge the "R_values" dict into "info", with a prefix:
                     **{"R_values/" + k: v for k, v in R_values.items()},
+                    **{'ROC_curve': (tp, fp) for k in range(roccurve)}
                 )
             )
             torch.cuda.synchronize()

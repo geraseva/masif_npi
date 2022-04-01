@@ -83,7 +83,10 @@ info = iterate(
     test=True,
     save_path=save_predictions_path,
     pdb_ids=test_pdb_ids,
+    roccurve=True
 )
+np.save(f"preds/{args.experiment_name}_roc.npy", info["ROC_curve"])
+
 
 #np.save(f"timings/{args.experiment_name}_convtime.npy", info["conv_time"])
 #np.save(f"timings/{args.experiment_name}_memoryusage.npy", info["memory_usage"])

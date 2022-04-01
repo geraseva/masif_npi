@@ -303,7 +303,7 @@ class dMaSIF(nn.Module):
         C = args.n_outputs
 
         # Computes chemical features
-        self.atomnet = AtomNet_MP(args)
+        self.atomnet = AtomNets(args)
         self.dropout = nn.Dropout(args.dropout)
 
         if args.embedding_layer == "dMaSIF":

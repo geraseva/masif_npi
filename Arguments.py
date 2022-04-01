@@ -114,6 +114,13 @@ parser.add_argument(
     default=0.0,
     help="Amount of Dropout for the input features",
 )
+parser.add_argument(
+    "--loss",
+    type=str,
+    default="CELoss",
+    choices=["CELoss", "BCELoss", "FocalLoss"],
+    help="Which loss function to use",
+)
 
 # Training
 parser.add_argument(
