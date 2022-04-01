@@ -51,8 +51,8 @@ class FocalLoss(nn.Module):
         [1] https://arxiv.org/abs/1708.02002
     """
 
-    def __init__(self, alpha: float, gamma: Optional[float] = 2.0,
-                 reduction: Optional[str] = 'none') -> None:
+    def __init__(self, alpha: float, gamma: float = 2.0,
+                 reduction: str = 'none') -> None:
         super(FocalLoss, self).__init__()
         self.alpha: float = alpha
         self.gamma: Optional[float] = gamma
@@ -101,8 +101,8 @@ def focal_loss(
         input: torch.Tensor,
         target: torch.Tensor,
         alpha: float,
-        gamma: Optional[float] = 2.0,
-        reduction: Optional[str] = 'none') -> torch.Tensor:
+        gamma: float = 2.0,
+        reduction: str = 'none') -> torch.Tensor:
 
     return FocalLoss(alpha, gamma, reduction)(input, target)
 
