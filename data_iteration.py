@@ -571,10 +571,13 @@ def iterate(
                             fp=np.array(fp)
 
                     else:
-                        roc_auc = roc_auc_score(
-                            np.rint(numpy(sampled_labels.view(-1))),
-                            numpy(sampled_preds.view(-1)),
-                        )
+                        a=np.rint(numpy(sampled_labels.view(-1)))
+                        b=numpy(sampled_preds.view(-1))
+                        roc_auc = roc_auc_score(a, b)
+                        if roccurve:
+                            tp, fp, _=roc_curve(a, b)
+                            tp=np.array(tp)
+                            fp=np.array(fp)
                 else:
                     roc_auc = 0.0
             except Exception as e:
