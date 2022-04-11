@@ -134,7 +134,7 @@ class NormalizeChemFeatures(object):
         return "{}()".format(self.__class__.__name__)
 
 
-def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, label_encoder={'DA':1, "DG": 2, "DC":3, "DT":4 }):
+def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, label_encoder=None):
     """Loads a protein surface mesh and its features"""
 
     # Load the data, and read the connectivity information:
@@ -149,11 +149,14 @@ def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, label_enc
 
     atom_coords = tensor(np.load(data_dir+'/'+(pdb_id + "_atomxyz.npy")))
     atom_types = tensor(np.load(data_dir+'/'+(pdb_id + "_atomtypes.npy")))
-    try:
+    if label_encoder!=None:
+        d=label_encoder.get('-')
+        if d==None:
+            d=0
         atom_res=np.load(data_dir+'/'+(pdb_id + "_resnames.npy"))
-        atom_res_enc=[label_encoder.get(a) for a in atom_res]
-        atom_res=inttensor(np.array([0 if a==None else a for a in atom_res_enc]))
-    except:
+        atom_res_enc=[label_encoder.get(a, d) for a in atom_res]
+        atom_res=inttensor(np.array(atom_res_enc))
+    else:
         atom_res=None
 
 
@@ -259,14 +262,14 @@ class PairData(Data):
             return 0
 
 
-def load_protein_pair(pdb_id, data_dir,single_pdb=False):
+def load_protein_pair(pdb_id, data_dir,single_pdb=False, la=None):
     """Loads a protein surface mesh and its features"""
     pspl = pdb_id.split("_")
     p1_id = pspl[0] + "_" + pspl[1]
     p2_id = pspl[0] + "_" + pspl[2]
 
     p1 = load_protein_npy(p1_id, data_dir, center=False,single_pdb=single_pdb)
-    p2 = load_protein_npy(p2_id, data_dir, center=False,single_pdb=single_pdb)
+    p2 = load_protein_npy(p2_id, data_dir, center=False,single_pdb=single_pdb, label_encoder=la)
     # pdist = ((p1['xyz'][:,None,:]-p2['xyz'][None,:,:])**2).sum(-1).sqrt()
     # pdist = pdist<2.0
     # y_p1 = (pdist.sum(1)>0).to(torch.float).reshape(-1,1)
@@ -443,16 +446,20 @@ class ProteinPairsSurfaces(InMemoryDataset):
 class NpiDataset(Dataset):
 
 
-    def __init__(self, list_file, transform=None):
+    def __init__(self, list_file, transform=None, binary=False):
         with open(list_file) as f_tr:
             self.list = f_tr.read().splitlines()
         self.transform = transform
+        if binary:
+            self.la={'-':1 }
+        else:
+            self.la={'DA':1, "DG": 2, "DC":3, "DT":4, '-':0 }
 
     def __len__(self):
         return len(self.list)
 
     def __getitem__(self, idx):
-        protein_pair = load_protein_pair(self.list[idx], '/home/domain/data/geraseva/dMaSIF/masif_npi/npys', True)
+        protein_pair = load_protein_pair(self.list[idx], 'npys', True, la=self.la)
 
         if self.transform is not None:
             protein_pair = self.transform(protein_pair)

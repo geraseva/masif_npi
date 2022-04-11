@@ -301,6 +301,8 @@ class dMaSIF(nn.Module):
         E = args.emb_dims
         H = args.post_units
         C = args.n_outputs
+        if args.site:
+            C=1
 
         # Computes chemical features
         self.atomnet = AtomNet(args)

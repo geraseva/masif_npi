@@ -20,6 +20,8 @@ import gc
 
 # Parse the arguments, prepare the TensorBoard writer:
 args = parser.parse_args()
+print('Start training')
+print('Arguments:',args)
 writer = SummaryWriter("runs/{}".format(args.experiment_name))
 model_path = "models/" + args.experiment_name
 torch.cuda.set_device(args.device)
@@ -48,10 +50,14 @@ transformations = (
 
 # PyTorch geometric expects an explicit list of "batched variables":
 batch_vars = ["xyz_p1", "xyz_p2", "atom_coords_p1", "atom_coords_p2"]
+if args.site:
+    binary=True
+else:
+    binary=False
 # Load the train dataset:
 if not Path('models/dataset.pt').exists():
     full_dataset = NpiDataset(
-        "lists/training_npi.list", transform=transformations
+        "lists/training_npi.list", transform=transformations, binary=binary
     )
     train_loader = DataLoader(
         full_dataset, batch_size=1, follow_batch=batch_vars, shuffle=False
@@ -76,7 +82,7 @@ train_dataset, val_dataset = random_split(
 
 # Load the test dataset:
 test_dataset = NpiDataset(
-    "lists/testing_npi.list", transform=transformations
+    "lists/testing_npi.list", transform=transformations,binary=binary
 )
 test_loader = DataLoader(
     test_dataset, batch_size=1, follow_batch=batch_vars, shuffle=False

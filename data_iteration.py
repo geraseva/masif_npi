@@ -160,7 +160,8 @@ def process_single(protein_pair, chain_idx=1):
         # Chemical features: atom coordinates and types.
         P["atom_xyz"] = protein_pair.atom_coords_p1
         P["atomtypes"] = protein_pair.atom_types_p1
-        P["atomres"] = protein_pair.atom_res_p1
+        if "atom_res_p1" in protein_pair.keys:
+            P["atomres"] = protein_pair.atom_res_p1
 
         P["xyz"] = protein_pair.gen_xyz_p1 if preprocessed else None
         P["normals"] = protein_pair.gen_normals_p1 if preprocessed else None
@@ -186,8 +187,8 @@ def process_single(protein_pair, chain_idx=1):
         # Chemical features: atom coordinates and types.
         P["atom_xyz"] = protein_pair.atom_coords_p2
         P["atomtypes"] = protein_pair.atom_types_p2
-        P["atomres"] = protein_pair.atom_res_p2
-
+        if "atom_res_p2" in protein_pair.keys:
+            P["atomres"] = protein_pair.atom_res_p2
 
         P["xyz"] = protein_pair.gen_xyz_p2 if preprocessed else None
         P["normals"] = protein_pair.gen_normals_p2 if preprocessed else None
@@ -284,7 +285,7 @@ def process(args, protein_pair, net):
         net.preprocess_surface(P1)
         #if P1["mesh_labels"] is not None:
         #    project_iface_labels(P1)
-    if args.npi and ("gen_labels_p1" not in protein_pair.keys):
+    if "gen_labels_p1" not in protein_pair.keys:
         P2 = process_single(protein_pair, chain_idx=2)
         project_npi_labels(P1, P2, threshold=5.0)
     P2 = None
@@ -374,7 +375,7 @@ def compute_loss(args, P1, P2, n_points_sample=16):
     if args.loss=='CELoss':
         loss = F.cross_entropy(preds_concat, labels_concat)
     elif args.loss=='BCELoss':
-        loss = F.binary_cross_entropy_with_logits(preds_concat, labels_concat)
+        loss = F.binary_cross_entropy_with_logits(preds_concat.squeeze(), labels_concat.float())
     elif args.loss=='FocalLoss':
         loss = focal_loss(preds_concat, labels_concat, alpha=0.25, reduction='mean')
 
@@ -404,7 +405,7 @@ def extract_single(P_batch, number):
     # Chemical features: atom coordinates and types.
     P["atom_xyz"] = P_batch["atom_xyz"][batch_atoms]
     P["atomtypes"] = P_batch["atomtypes"][batch_atoms]
-    P["atomres"] = P_batch["atomres"][batch_atoms]
+
 
     return P
 
