@@ -151,11 +151,6 @@ def save_npy_as_ply(filename, in_channels=16, emb_dims=8,n_outputs=5):
 def load_npy(
     filename, color="white", dotSize=0.2, in_channels=16, emb_dims=8,n_outputs=5
 ):
-    ## Pymesh should be faster and supports binary ply files. However it is difficult to install with pymol...
-    #        import pymesh
-    #        mesh = pymesh.load_mesh(filename)
-
-    from simple_mesh import Simple_mesh
 
     verts=np.load(filename[:-4]+"_predcoords.npy")
     feats=np.load(filename[:-4]+'_predfeatures_emb1.npy')
@@ -218,6 +213,8 @@ def load_npy(
         cmd.load_cgo(obj, name, 1.0)
         group_names = group_names + " " + name
 
+    if n_outputs!=5:
+        return 0
     name = "pred_na"
     obj = []
     color_array = iface_color(np.argmax(feats[:,-2*n_outputs:-n_outputs], axis=1))
@@ -241,39 +238,9 @@ def load_npy(
     group_names = group_names + " " + name
 
     cmd.group(filename, group_names)
-
+    return 0
     # Draw surface charges.
-    if (
-        "vertex_charge" in mesh.get_attribute_names()
-        and "vertex_nx" in mesh.get_attribute_names()
-    ):
-        color_array_surf = color_array
-        for tri in faces:
-            vert1 = verts[int(tri[0])]
-            vert2 = verts[int(tri[1])]
-            vert3 = verts[int(tri[2])]
-            na = normals[int(tri[0])]
-            nb = normals[int(tri[1])]
-            nc = normals[int(tri[2])]
-            obj.extend([BEGIN, TRIANGLES])
-            # obj.extend([ALPHA, 0.5])
-            obj.extend(color_array_surf[int(tri[0])])
-            obj.extend([NORMAL, (na[0]), (na[1]), (na[2])])
-            obj.extend([VERTEX, (vert1[0]), (vert1[1]), (vert1[2])])
-            obj.extend(color_array_surf[int(tri[1])])
-            obj.extend([NORMAL, (nb[0]), (nb[1]), (nb[2])])
-            obj.extend([VERTEX, (vert2[0]), (vert2[1]), (vert2[2])])
-            obj.extend(color_array_surf[int(tri[2])])
-            obj.extend([NORMAL, (nc[0]), (nc[1]), (nc[2])])
-            obj.extend([VERTEX, (vert3[0]), (vert3[1]), (vert3[2])])
-            obj.append(END)
-        name = "pb_" + filename
-        cmd.load_cgo(obj, name, 1.0)
-        obj = []
-        group_names = group_names + " " + name
-
-    obj = []
-
+    
 def load_ply(
     filename, color="white", name="ply", dotSize=0.2, lineSize=0.5, doStatistics=False
 ):
