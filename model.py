@@ -55,6 +55,7 @@ class Atom_embedding(nn.Module):
         super(Atom_embedding, self).__init__()
         self.D = args.chem_dims
         self.k = 16
+        self.dropout=nn.Dropout(args.dropout)
         self.conv1 = nn.Linear(self.D + 1, self.D)
         self.conv2 = nn.Linear(self.D, self.D)
         self.conv3 = nn.Linear(2 * self.D, self.D)
@@ -64,6 +65,7 @@ class Atom_embedding(nn.Module):
 
     def forward(self, x, y, y_atomtypes, x_batch, y_batch):
         fx = get_atom_features(x, y, x_batch, y_batch, y_atomtypes, k=self.k)
+        fx = self.dropout(fx)
         fx = self.conv1(fx)
         fx = fx.view(-1, self.D)
         fx = self.bn1(self.relu(fx))
