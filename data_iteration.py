@@ -76,7 +76,7 @@ class FocalLoss(nn.Module):
         if input.shape[1]==1 or len(input.shape)==1: 
             # binary
             input_soft = F.sigmoid(input.squeeze())
-            input_soft=torch.stack(1. - input_soft, input_soft, dim=1) + self.eps
+            input_soft=torch.stack((1. - input_soft, input_soft), dim=1) + self.eps
 
         else:
         # compute softmax over the classes axis
