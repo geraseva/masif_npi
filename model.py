@@ -110,6 +110,7 @@ class Atom_embedding_MP(nn.Module):
         self.D = args.chem_dims
         self.k = 16
         self.n_layers = 3
+        self.dropout=nn.Dropout(args.dropout)
         self.mlp = nn.ModuleList(
             [
                 nn.Sequential(
@@ -139,7 +140,7 @@ class Atom_embedding_MP(nn.Module):
                 [point_emb[:, None, :].repeat(1, self.k, 1), features], dim=-1
             )  # N, 8, 13
 
-            messages = self.mlp[i](features)  # N,8,6
+            messages = self.dropout(self.mlp[i](features))  # N,8,6
             messages = messages.sum(1)  # N,6
             point_emb = point_emb + self.relu(self.norm[i](messages))
 
@@ -151,6 +152,7 @@ class Atom_Atom_embedding_MP(nn.Module):
         self.D = args.chem_dims
         self.k = 17
         self.n_layers = 3
+        self.dropout=nn.Dropout(args.dropout)
 
         self.mlp = nn.ModuleList(
             [
@@ -185,7 +187,7 @@ class Atom_Atom_embedding_MP(nn.Module):
                 [out[:, None, :].repeat(1, k, 1), features], dim=-1
             )  # N, 8, 13
 
-            messages = self.mlp[i](features)  # N,8,6
+            messages = self.dropout(self.mlp[i](features))  # N,8,6
             messages = messages.sum(1)  # N,6
             out = out + self.relu(self.norm[i](messages))
 
@@ -307,7 +309,7 @@ class dMaSIF(nn.Module):
             C=1
 
         # Computes chemical features
-        self.atomnet = AtomNet(args)
+        self.atomnet = AtomNet_MP(args)
         self.dropout = nn.Dropout(args.dropout)
 
         if args.embedding_layer == "dMaSIF":
