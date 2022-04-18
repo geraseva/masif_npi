@@ -75,7 +75,7 @@ class FocalLoss(nn.Module):
                     input.device, target.device))
         if input.shape[1]==1 or len(input.shape)==1: 
             # binary
-            input_soft = F.sigmoid(input.squeeze())
+            input_soft = torch.sigmoid(input.squeeze())
             input_soft=torch.stack((1. - input_soft, input_soft), dim=1) + self.eps
 
         else:
