@@ -73,16 +73,23 @@ class FocalLoss(nn.Module):
             raise ValueError(
                 "input and target must be in the same device. Got: {}" .format(
                     input.device, target.device))
+        if input.shape[1]==1 or len(input.shape)==1: 
+            # binary
+            BCE_loss = F.binary_cross_entropy_with_logits(input.squeeze(), targets, reduction='none')
+            pt = torch.exp(-BCE_loss) # prevents nans when probability 0
+            loss_tmp = self.alpha * (1-pt)**self.gamma * BCE_loss
+
+        else:
         # compute softmax over the classes axis
-        input_soft = F.softmax(input, dim=1) + self.eps
+            input_soft = F.softmax(input, dim=1) + self.eps
 
         # create the labels one hot tensor
-        target_one_hot = F.one_hot(target, num_classes=input.shape[1])
+            target_one_hot = F.one_hot(target, num_classes=input.shape[1])
 
         # compute the actual focal loss
-        weight = torch.pow(1. - input_soft, self.gamma)
-        focal = -self.alpha * weight * torch.log(input_soft)
-        loss_tmp = torch.sum(target_one_hot * focal, dim=1)
+            weight = torch.pow(1. - input_soft, self.gamma)
+            focal = -self.alpha * weight * torch.log(input_soft)
+            loss_tmp = torch.sum(target_one_hot * focal, dim=1)
 
         loss = -1
         if self.reduction == 'none':
