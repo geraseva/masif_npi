@@ -75,7 +75,7 @@ class FocalLoss(nn.Module):
                     input.device, target.device))
         if input.shape[1]==1 or len(input.shape)==1: 
             # binary
-            BCE_loss = F.binary_cross_entropy_with_logits(input.squeeze(), target, reduction='none')
+            BCE_loss = F.binary_cross_entropy_with_logits(input.squeeze(), float(target), reduction='none')
             pt = torch.exp(-BCE_loss) # prevents nans when probability 0
             loss_tmp = self.alpha * (1-pt)**self.gamma * BCE_loss
 
