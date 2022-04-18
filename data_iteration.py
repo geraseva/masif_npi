@@ -75,16 +75,15 @@ class FocalLoss(nn.Module):
                     input.device, target.device))
         if input.shape[1]==1 or len(input.shape)==1: 
             # binary
-            BCE_loss = torch.binary_cross_entropy_with_logits(input.squeeze(), float(target), reduction='none')
-            pt = torch.exp(-BCE_loss) # prevents nans when probability 0
-            loss_tmp = self.alpha * (1-pt)**self.gamma * BCE_loss
+            input_soft = F.sigmoid(input.squeeze())
+            input_soft=torch.stack(input_soft,1.-input_soft, dim=1) + self.eps
 
         else:
         # compute softmax over the classes axis
             input_soft = F.softmax(input, dim=1) + self.eps
 
         # create the labels one hot tensor
-            target_one_hot = F.one_hot(target, num_classes=input.shape[1])
+        target_one_hot = F.one_hot(target, num_classes=input_softmax.shape[1])
 
         # compute the actual focal loss
             weight = torch.pow(1. - input_soft, self.gamma)
