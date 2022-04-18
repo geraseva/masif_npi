@@ -76,19 +76,19 @@ class FocalLoss(nn.Module):
         if input.shape[1]==1 or len(input.shape)==1: 
             # binary
             input_soft = F.sigmoid(input.squeeze())
-            input_soft=torch.stack(input_soft,1.-input_soft, dim=1) + self.eps
+            input_soft=torch.stack(1. - input_soft, input_soft, dim=1) + self.eps
 
         else:
         # compute softmax over the classes axis
             input_soft = F.softmax(input, dim=1) + self.eps
 
         # create the labels one hot tensor
-        target_one_hot = F.one_hot(target, num_classes=input_softmax.shape[1])
+        target_one_hot = F.one_hot(target, num_classes=input_soft.shape[1])
 
         # compute the actual focal loss
-            weight = torch.pow(1. - input_soft, self.gamma)
-            focal = -self.alpha * weight * torch.log(input_soft)
-            loss_tmp = torch.sum(target_one_hot * focal, dim=1)
+        weight = torch.pow(1. - input_soft, self.gamma)
+        focal = -self.alpha * weight * torch.log(input_soft)
+        loss_tmp = torch.sum(target_one_hot * focal, dim=1)
 
         loss = -1
         if self.reduction == 'none':
