@@ -15,12 +15,9 @@ def load_structure_np(fname, center):
     types = []
     res=[]
     for atom in atoms:
-        if atom.element in ele2num.keys():
-            coords.append(atom.get_coord())
-            types.append(atom.element)
-            res.append(atom.get_parent().get_resname())
-        else: 
-            print('Unknown atom',atom.element, 'in', str(fname).split('/')[-1])
+        coords.append(atom.get_coord())
+        types.append(atom.element)
+        res.append(atom.get_parent().get_resname())
 
     coords = np.stack(coords)
     types_array = np.array(types)
