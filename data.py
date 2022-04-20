@@ -273,7 +273,7 @@ class PairData(Data):
             return 0
 
 
-def load_protein_pair(pdb_id, data_dir,single_pdb=False, la=None):
+def load_protein_pair(pdb_id, data_dir,single_pdb=False, aa=None, la=None):
     """Loads a protein surface mesh and its features"""
     pspl = pdb_id.split("_")
     p1_id = pspl[0] + "_" + pspl[1]
