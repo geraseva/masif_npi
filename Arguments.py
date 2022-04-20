@@ -16,6 +16,13 @@ parser.add_argument(
     choices=["dMaSIF", "DGCNN", "PointNet++"],
     help="Which convolutional embedding layer to use",
 )
+parser.add_argument(
+    "--feature_generation",
+    type=str,
+    default="AtomNet",
+    choices=["AtomNet", "AtomNet_MP"],
+    help="Which model to use for feature generation",
+)
 parser.add_argument("--profile", type=bool, default=False, help="Profile code")
 
 # Geometric parameters
