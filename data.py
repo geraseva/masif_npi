@@ -134,10 +134,11 @@ class NormalizeChemFeatures(object):
         return "{}()".format(self.__class__.__name__)
 
 
-def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, label_encoder=None):
+def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, atom_encoder=None,label_encoder=None):
     """Loads a protein surface mesh and its features"""
 
     # Load the data, and read the connectivity information:
+
     triangles = (
         None
         if single_pdb
@@ -148,7 +149,17 @@ def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, label_enc
     center_location = None if single_pdb else torch.mean(points, axis=0, keepdims=True)
 
     atom_coords = tensor(np.load(data_dir+'/'+(pdb_id + "_atomxyz.npy")))
-    atom_types = tensor(np.load(data_dir+'/'+(pdb_id + "_atomtypes.npy")))
+
+    if atom_encoder!=None:
+        d=atom_encoder.get('-')
+        if d==None:
+            d=0
+        atom_types=np.load(data_dir+'/'+(pdb_id + "_atomtypes.npy"))
+        atom_types_enc=[atom_encoder.get(a, d) for a in atom_types]
+        atom_types=inttensor(np.array(atom_res_enc))
+    else:
+        atom_types=tensor(np.load(data_dir+'/'+(pdb_id + "_atomtypes.npy")))
+
     if label_encoder!=None:
         d=label_encoder.get('-')
         if d==None:
@@ -268,8 +279,8 @@ def load_protein_pair(pdb_id, data_dir,single_pdb=False, la=None):
     p1_id = pspl[0] + "_" + pspl[1]
     p2_id = pspl[0] + "_" + pspl[2]
 
-    p1 = load_protein_npy(p1_id, data_dir, center=False,single_pdb=single_pdb)
-    p2 = load_protein_npy(p2_id, data_dir, center=False,single_pdb=single_pdb, label_encoder=la)
+    p1 = load_protein_npy(p1_id, data_dir, center=False,single_pdb=single_pdb, atom_encoder=aa)
+    p2 = load_protein_npy(p2_id, data_dir, center=False,single_pdb=single_pdb, atom_encoder=aa, label_encoder=la)
     # pdist = ((p1['xyz'][:,None,:]-p2['xyz'][None,:,:])**2).sum(-1).sqrt()
     # pdist = pdist<2.0
     # y_p1 = (pdist.sum(1)>0).to(torch.float).reshape(-1,1)
@@ -454,12 +465,13 @@ class NpiDataset(Dataset):
             self.la={'-':1 }
         else:
             self.la={'DA':1, "DG": 2, "DC":3, "DT":4, '-':0 }
+        self.aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5}
 
     def __len__(self):
         return len(self.list)
 
     def __getitem__(self, idx):
-        protein_pair = load_protein_pair(self.list[idx], 'npys', True, la=self.la)
+        protein_pair = load_protein_pair(self.list[idx], 'npys', True, aa=self.aa, la=self.la)
 
         if self.transform is not None:
             protein_pair = self.transform(protein_pair)
