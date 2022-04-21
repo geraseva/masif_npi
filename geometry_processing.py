@@ -163,10 +163,10 @@ def soft_distances(x, y, batch_x, batch_y, smoothness=0.01, atomtypes=None):
         # (N, 6)  -> (N, 1, 1)  (There are 6 atom types)
         if x.device==torch.device('cpu'):
             atomic_radii = torch.FloatTensor(
-            [170, 110, 152, 155, 180, 190, 180, 147, 175, 185, 198])
+            [170, 110, 152, 155, 180, 190])
         else:
             atomic_radii = torch.cuda.FloatTensor(
-            [170, 110, 152, 155, 180, 190, 180, 147, 175, 185, 198], device=x.device
+            [170, 110, 152, 155, 180, 190], device=x.device
         )
         atomic_radii = atomic_radii / atomic_radii.min()
         atomtype_radii = atomtypes * atomic_radii[None, :]  # n_atoms, n_atomtypes
