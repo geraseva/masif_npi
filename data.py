@@ -158,7 +158,7 @@ def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, atom_enco
         atom_types=np.load(data_dir+'/'+(pdb_id + "_atomtypes.npy"))
         atom_types_enc=[atom_encoder.get(a, d) for a in atom_types]
         atom_types=inttensor(np.array(atom_types_enc))
-        atom_types=F.one_hot(atom_types,num_classes=max(atom_encoder.values())+1)
+        atom_types=F.one_hot(atom_types,num_classes=max(atom_encoder.values())+1).float()
     else:
         atom_types=tensor(np.load(data_dir+'/'+(pdb_id + "_atomtypes.npy")))
 
