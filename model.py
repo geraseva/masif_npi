@@ -49,17 +49,18 @@ def get_atom_features(x, y, x_batch, y_batch, y_atomtype, k=16):
 
     return feature
 
-def get_features_v(x, y, x_batch, y_batch, y_atomtype, k=16):
+def get_features_v(x, y, x_batch, y_batch, y_atomtype, k=16, gamma=0.5):
 
-    idx, dists = knn_atoms(x, y, x_batch, y_batch, k=k, gamma=0.5)  # (num_points, k)
+    idx, dists = knn_atoms(x, y, x_batch, y_batch, k=k)  # (num_points, k)
     num_points, _ = idx.size()
 
     idx = idx.view(-1)
-    dists = 1 / dists.view(-1)
+    dists = 1 / dists.view(-1,1)
     dists = torch.pow(dists,gamma)
     _, num_dims = y_atomtype.size()
 
     y_coords=y[idx,:]
+
 
     #normalize coords by distance
     norm_vec=torch.mul(y_coords,dists).view(num_points, k, 3, 1)
@@ -76,9 +77,9 @@ class AtomNet_V(nn.Module):
     def __init__(self, args):
         super(AtomNet_V, self).__init__()
         self.args = args
-
+        self.k = 16
         self.transform_types = nn.Sequential(
-            nn.Dropout(args.dropout)
+            nn.Dropout(args.dropout),
             nn.Linear(args.atom_dims, args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
             nn.Linear(args.chem_dims, args.chem_dims),
@@ -87,8 +88,8 @@ class AtomNet_V(nn.Module):
             nn.LeakyReLU(negative_slope=0.2),
         )
         self.embedding = nn.Sequential(
-            nn.Dropout(args.dropout)
-            nn.Linear(args.chem_dims,args.chem_dims)
+            nn.Dropout(args.dropout),
+            nn.Linear(args.chem_dims,args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
             nn.Linear(args.chem_dims, args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
@@ -96,11 +97,12 @@ class AtomNet_V(nn.Module):
         )
 
 
+
     def forward(self, xyz, atom_xyz, atomtypes, batch, atom_batch):
 
         atomtypes=atomtypes[:,:self.args.atom_dims]
         atomtypes = self.transform_types(atomtypes)
-        fx = get_features_v(x, y, x_batch, y_batch, atomtypes, k=self.k)
+        fx = get_features_v(xyz, atom_xyz, batch, atom_batch, atomtypes, k=self.k)
         fx = self.embedding(fx)
         return fx
 
@@ -364,11 +366,11 @@ class dMaSIF(nn.Module):
             C=1
 
         # Computes chemical features
-        if args.feature_generation='AtomNet':
+        if args.feature_generation=='AtomNet':
             self.atomnet = AtomNet(args)
-        elif args.feature_generation='AtomNet_MP':
+        elif args.feature_generation=='AtomNet_MP':
             self.atomnet = AtomNet_MP(args)
-        elif args.feature_generation='AtomNet_V':
+        elif args.feature_generation=='AtomNet_V':
             self.atomnet = AtomNet_V(args)
 
         self.dropout = nn.Dropout(args.dropout)

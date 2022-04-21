@@ -81,14 +81,23 @@ train_dataset, val_dataset = random_split(
 )
 
 # Load the test dataset:
-test_dataset = NpiDataset(
-    "lists/testing_npi.list", transform=transformations,binary=binary
-)
-test_loader = DataLoader(
-    test_dataset, batch_size=1, follow_batch=batch_vars, shuffle=False
-)
-print("Preprocessing testing dataset")
-test_dataset = iterate_surface_precompute(test_loader, net, args)
+if not Path('models/test_dataset.pt').exists():
+    test_dataset = NpiDataset(
+        "lists/testing_npi.list", transform=transformations, binary=binary
+    )
+    test_loader = DataLoader(
+        test_dataset, batch_size=1, follow_batch=batch_vars, shuffle=False
+    )
+    print("Preprocessing testing dataset")
+    test_dataset = iterate_surface_precompute(test_loader, net, args)
+    
+    with open('models/test_dataset.pt', 'wb') as fp:
+        pickle.dump(test_dataset, fp)
+else:
+    print('Loading testing dataset')
+    with open('models/test_dataset.pt', 'rb') as fp:
+        test_dataset=pickle.load(fp)
+
 
 # PyTorch_geometric data loaders:
 train_loader = DataLoader(
