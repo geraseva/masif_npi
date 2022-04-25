@@ -49,23 +49,35 @@ def get_atom_features(x, y, x_batch, y_batch, y_atomtype, k=16):
 
     return feature
 
-def get_features_v(x, y, x_batch, y_batch, y_atomtype, k=16, gamma=0.5):
+def get_features_v(x, y, x_batch, y_batch, y_atomtype, k=16, gamma=0):
 
-    idx, dists = knn_atoms(x, y, x_batch, y_batch, k=k)  # (num_points, k)
-    num_points, _ = idx.size()
+    N, D = x.shape
+    x_i = LazyTensor(x[:, None, :])
+    y_j = LazyTensor(y[None, :, :])
 
-    idx = idx.view(-1)
-    dists = 1 / dists.view(-1,1)
-    dists = torch.pow(dists,gamma)
+    pairwise_distance_ij = ((x_i - y_j) ** 2).sum(-1)
+    pairwise_distance_ij.ranges = diagonal_ranges(x_batch, y_batch)
+
+    # N.B.: KeOps doesn't yet support backprop through Kmin reductions...
+    # dists, idx = pairwise_distance_ij.Kmin_argKmin(K=k,axis=1)
+    # So we have to re-compute the values ourselves:
+    idx = pairwise_distance_ij.argKmin(K=k, axis=1).view(-1)  # (N, K)
+    
+    x_ik = y[idx].view(N, k, D)
+    
+    dists = ((x[:, None, :] - x_ik) ** 2).sum(-1)
+
+    dists = torch.pow(dists,-(1+gamma)/2).view(N,k,1)
+
     _, num_dims = y_atomtype.size()
 
-    y_coords=y[idx,:]
+    vecs=(x[:, None, :]-x_ik)
 
 
     #normalize coords by distance
-    norm_vec=torch.mul(y_coords,dists).view(num_points, k, 3, 1)
+    norm_vec=torch.mul(vecs,dists).view(N, k, D, 1)
     
-    feature = y_atomtype[idx, :].view(num_points, k, 1, num_dims)
+    feature = y_atomtype[idx, :].view(N, k, 1, num_dims)
 
     feature=torch.mul(norm_vec, feature).sum(dim=1, keepdim=False) 
 
@@ -79,7 +91,6 @@ class AtomNet_V(nn.Module):
         self.args = args
         self.k = 16
         self.transform_types = nn.Sequential(
-            nn.Dropout(args.dropout),
             nn.Linear(args.atom_dims, args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
             nn.Linear(args.chem_dims, args.chem_dims),
@@ -88,11 +99,12 @@ class AtomNet_V(nn.Module):
             nn.LeakyReLU(negative_slope=0.2),
         )
         self.embedding = nn.Sequential(
-            nn.Dropout(args.dropout),
             nn.Linear(args.chem_dims,args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
+            nn.BatchNorm1d(args.chem_dims),
             nn.Linear(args.chem_dims, args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
+            nn.BatchNorm1d(args.chem_dims),
             nn.Linear(args.chem_dims, args.chem_dims),
         )
 
