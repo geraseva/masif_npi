@@ -49,7 +49,7 @@ def get_atom_features(x, y, x_batch, y_batch, y_atomtype, k=16):
 
     return feature
 
-def get_features_v(x, y, x_batch, y_batch, y_atomtype, k=16, gamma=0):
+def get_features_v(x, y, x_batch, y_batch, y_atomtype, k=16, gamma=1):
 
     N, D = x.shape
     x_i = LazyTensor(x[:, None, :])
