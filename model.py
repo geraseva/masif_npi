@@ -79,11 +79,10 @@ def get_features_v(x, y, x_batch, y_batch, y_atomtype, k=16, gamma=1):
     
     feature = y_atomtype[idx, :].view(N, k, 1, num_dims)
 
-    feature=torch.mul(norm_vec, feature).sum(dim=1, keepdim=False) 
+    feature=torch.mul(norm_vec, feature)
 
-    feature=torch.square(feature).sum(dim=1, keepdim=False) #(num_points,num_dims)
 
-    return torch.sqrt(feature)
+    return torch.transpose(feature, 1, 3) # (N, num_dims, D, k )
 
 class AtomNet_V(nn.Module):
     def __init__(self, args):
@@ -98,13 +97,18 @@ class AtomNet_V(nn.Module):
             nn.Linear(args.chem_dims, args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
         )
+        self.dropout=nn.Dropout(args.dropout)
+        self.att=nn.Sequential(
+            nn.Linear(self.k, 1),
+            nn.ReLU()
+        )
         self.embedding = nn.Sequential(
             nn.Linear(args.chem_dims,args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.BatchNorm1d(args.chem_dims),
+            #nn.BatchNorm1d(args.chem_dims),
             nn.Linear(args.chem_dims, args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.BatchNorm1d(args.chem_dims),
+            #nn.BatchNorm1d(args.chem_dims),
             nn.Linear(args.chem_dims, args.chem_dims),
         )
 
@@ -115,6 +119,8 @@ class AtomNet_V(nn.Module):
         atomtypes=atomtypes[:,:self.args.atom_dims]
         atomtypes = self.transform_types(atomtypes)
         fx = get_features_v(xyz, atom_xyz, batch, atom_batch, atomtypes, k=self.k)
+        fx = self.att(self.dropout(fx)).view(-1,self.args.chem_dims,3)
+        fx= torch.sqrt(torch.square(fx).sum(dim=-1, keepdim=False))
         fx = self.embedding(fx)
         return fx
 
