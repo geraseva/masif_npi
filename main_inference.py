@@ -37,9 +37,11 @@ if args.site:
 else:
     la={'DA':1, "DG": 2, "DC":3, "DT":4, '-':0 }
 
+aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5}
+
 if args.single_pdb != "":
     single_data_dir = "./data_preprocessing/npys/"
-    test_dataset = [load_protein_pair(args.single_pdb, single_data_dir,single_pdb=True,la=la)]
+    test_dataset = [load_protein_pair(args.single_pdb, single_data_dir,single_pdb=True,la=la, aa=aa)]
     test_pdb_ids = [args.single_pdb]
 elif args.pdb_list != "":
     with open(args.pdb_list) as f:
@@ -90,7 +92,7 @@ info = iterate(
     roccurve=True
 )
 np.save(f"preds/{args.experiment_name}_roc.npy", info["ROC_curve"])
-
+print(info["ROC-AUC"])
 
 #np.save(f"timings/{args.experiment_name}_convtime.npy", info["conv_time"])
 #np.save(f"timings/{args.experiment_name}_memoryusage.npy", info["memory_usage"])
