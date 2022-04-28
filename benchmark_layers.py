@@ -62,7 +62,7 @@ def keops_knn(
     D_ij.ranges = diagonal_ranges(batch_y, batch_x)
     idy = D_ij.argKmin(k, dim=1)  # (N, K)
 
-    rows = torch.arange(k * len(y), device=idy.device) // k
+    rows = torch.arange(k * len(y), device=idy.device, rounding_mode='trunc') // k
 
     return torch.stack([rows, idy.view(-1)], dim=0)
 
