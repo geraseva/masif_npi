@@ -55,23 +55,9 @@ if args.site:
 else:
     binary=False
 # Load the train dataset:
-if not Path('models/dataset.pt').exists():
-    full_dataset = NpiDataset(
-        "lists/training_npi.list", transform=transformations, binary=binary
-    )
-    train_loader = DataLoader(
-        full_dataset, batch_size=1, follow_batch=batch_vars, shuffle=False
-    )
-    print("Preprocessing training dataset")
-    full_dataset = iterate_surface_precompute(train_loader, net, args)
-
-    with open('models/dataset.pt', 'wb') as fp:
-        pickle.dump(full_dataset, fp)
-else:
-    print('Loading training dataset')
-    with open('models/dataset.pt', 'rb') as fp:
-        full_dataset=pickle.load(fp)
-
+full_dataset = NpiDataset(
+        "lists/training_npi.list", net=net, transform=transformations, binary=binary
+)
 # Train/Validation split:
 train_nsamples = len(full_dataset)
 val_nsamples = int(train_nsamples * args.validation_fraction)
@@ -80,25 +66,10 @@ train_dataset, val_dataset = random_split(
     full_dataset, [train_nsamples, val_nsamples]
 )
 
-# Load the test dataset:
-if not Path('models/test_dataset.pt').exists():
-    test_dataset = NpiDataset(
-        "lists/testing_npi.list", transform=transformations, binary=binary
-    )
-    test_loader = DataLoader(
-        test_dataset, batch_size=1, follow_batch=batch_vars, shuffle=False
-    )
-    print("Preprocessing testing dataset")
-    test_dataset = iterate_surface_precompute(test_loader, net, args)
-    
-    with open('models/test_dataset.pt', 'wb') as fp:
-        pickle.dump(test_dataset, fp)
-else:
-    print('Loading testing dataset')
-    with open('models/test_dataset.pt', 'rb') as fp:
-        test_dataset=pickle.load(fp)
-
-
+test_dataset = NpiDataset(
+        "lists/testing_npi.list", net=net, transform=transformations, binary=binary
+)
+ 
 # PyTorch_geometric data loaders:
 train_loader = DataLoader(
     train_dataset, batch_size=1, follow_batch=batch_vars, shuffle=True
