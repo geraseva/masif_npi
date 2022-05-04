@@ -552,7 +552,7 @@ class dMaSIF(nn.Module):
             sup_sampling=self.args.sup_sampling,
             distance=self.args.distance,
         )
-        if P['mesh_labels'] is not None:
+        if P.get('mesh_labels') is not None:
             project_iface_labels(P)
 
     def forward(self, P1, P2=None):

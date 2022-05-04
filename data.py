@@ -11,6 +11,8 @@ from pathlib import Path
 import requests
 from data_preprocessing.convert_pdb2npy import convert_pdbs
 from data_preprocessing.convert_ply2npy import convert_plys
+from data_iteration import project_npi_labels
+from tqdm import tqdm
 
 tensor = torch.FloatTensor
 inttensor = torch.LongTensor
@@ -21,18 +23,26 @@ def numpy(x):
 
 
 def iface_valid_filter(protein_pair):
-    labels1 = protein_pair.y_p1.reshape(-1)
-    labels2 = protein_pair.y_p2.reshape(-1)
+    labels1 = protein_pair.gen_labels_p1.reshape(-1)>0
     valid1 = (
         (torch.sum(labels1) < 0.75 * len(labels1))
         and (torch.sum(labels1) > 30)
-        and (torch.sum(labels1) > 0.01 * labels2.shape[0])
     )
-    valid2 = (
-        (torch.sum(labels2) < 0.75 * len(labels2))
-        and (torch.sum(labels2) > 30)
-        and (torch.sum(labels2) > 0.01 * labels1.shape[0])
-    )
+    
+    labels2 = protein_pair.get('gen_labels_p2')
+    if labels2 != None:
+        labels2 = labels2.reshape(-1)>0
+        valid2 = (
+            (torch.sum(labels2) < 0.75 * len(labels2))
+            and (torch.sum(labels2) > 30)
+            and (torch.sum(labels2) > 0.01 * labels1.shape[0])
+        )
+        valid1 = (
+            valid1 
+            and (torch.sum(labels1) > 0.01 * labels2.shape[0])
+        )
+    else:
+        valid2=True
 
     return valid1 and valid2
 
@@ -456,26 +466,79 @@ class ProteinPairsSurfaces(InMemoryDataset):
         torch.save((testing_pairs_data, testing_pairs_slices), self.processed_paths[1])
         np.save(self.processed_paths[3], testing_pairs_data_ids)
 
-class NpiDataset(Dataset):
+class NpiDataset(InMemoryDataset):
 
 
-    def __init__(self, list_file, transform=None, binary=False):
+    def __init__(self, list_file, net, transform=None, binary=False):
+        
         with open(list_file) as f_tr:
             self.list = f_tr.read().splitlines()
-        self.transform = transform
+
+        self.name=list_file.split('/')[-1].split('.')[0]
+       
+        self.net=net
         if binary:
             self.la={'-':1 }
         else:
             self.la={'DA':1, "DG": 2, "DC":3, "DT":4, '-':0 }
         self.aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5}
-
-    def __len__(self):
-        return len(self.list)
-
-    def __getitem__(self, idx):
-        protein_pair = load_protein_pair(self.list[idx], 'npys', True, aa=self.aa, la=self.la)
-
-        if self.transform is not None:
-            protein_pair = self.transform(protein_pair)
         
-        return protein_pair
+        super().__init__(None, transform, None)
+
+        self.data, self.slices = torch.load(self.processed_paths[0])
+    
+    @property
+    def processed_dir(self) -> str:
+        return 'npys/'
+
+    @property
+    def processed_file_names(self):
+        file_names = [
+            self.name+'.pt',
+            self.name+'_idx.npy'
+        ]
+
+        return file_names
+
+    def process(self):
+        
+        print('Preprocess', self.name)
+        processed_dataset=[]
+        processed_idx=[]
+        for idx in tqdm(self.list):
+            protein_pair = load_protein_pair(idx, 'npys', True, aa=self.aa, la=self.la)
+
+            P1= {}
+            P1["atoms"] = protein_pair.atom_coords_p1
+            P1["batch_atoms"]=torch.zeros(P1["atoms"].shape[:-1], dtype=torch.int)
+            P1["atom_xyz"] = protein_pair.atom_coords_p1
+            P1["atomtypes"] = protein_pair.atom_types_p1
+
+            self.net.preprocess_surface(P1)
+
+            P2 = {}
+            P2["atoms"] = protein_pair.atom_coords_p2
+            P2["batch_atoms"]=torch.zeros(P2["atoms"].shape[:-1], dtype=torch.int)
+            P2["atom_xyz"] = protein_pair.atom_coords_p2
+            P2["atomtypes"] = protein_pair.atom_types_p2
+            P2["atomres"] = protein_pair.atom_res_p2
+            
+            project_npi_labels(P1, P2, threshold=5.0)
+    
+            protein_pair.gen_xyz_p1 = P1["xyz"]
+            protein_pair.gen_normals_p1 = P1["normals"]
+            protein_pair.gen_labels_p1 = P1["labels"]
+            protein_pair.gen_batch_p1 = P1["batch"]
+
+            
+
+            if iface_valid_filter(protein_pair):
+                processed_dataset.append(protein_pair)
+                processed_idx.append(idx)
+        processed_dataset, slices=self.collate(processed_dataset)
+
+        torch.save(
+            (processed_dataset, slices), self.processed_paths[0]
+        )
+        np.save(self.processed_paths[1], processed_idx)
+
