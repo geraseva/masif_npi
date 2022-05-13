@@ -149,11 +149,10 @@ def save_npy_as_ply(filename, in_channels=16, emb_dims=8,n_outputs=5):
     return mesh
 
 def load_npy(
-    filename, color="white", dotSize=0.2, in_channels=16, emb_dims=8,n_outputs=5
-):
+    filename, color="white", dotSize=0.2, in_channels=16, emb_dims=8, thr=0.5):
 
-    verts=np.load(filename[:-4]+"_predcoords.npy")
-    feats=np.load(filename[:-4]+'_predfeatures_emb1.npy')
+    verts=np.load(filename+"_predcoords.npy")
+    feats=np.load(filename+'_predfeatures_emb1.npy')
 
     ignore_normal = False
     with_normal = False
@@ -171,7 +170,8 @@ def load_npy(
 
         cmd.load_cgo(obj, name, 1.0)
         group_names = group_names + " " + name
-
+    cmd.group('input_'+filename, group_names)
+    group_names = ""
   
     for feat in range(0,emb_dims):
         name = "emb_feature_"+str(feat)
@@ -185,8 +185,15 @@ def load_npy(
         cmd.load_cgo(obj, name, 1.0)
         group_names = group_names + " " + name
 
+    cmd.group('emb_'+filename, group_names)
+    group_names = ""
+
+
+    n_outputs=(feats.shape[1]-in_channels-emb_dims)//2
+    
     nmap=['0','A','G','C','T']
-    assert len(nmap)==n_outputs
+
+    assert (len(nmap)==n_outputs) or (n_outputs==1)
 
     for feat in range(0,n_outputs):
         name = "pred_"+nmap[feat]
@@ -199,7 +206,34 @@ def load_npy(
 
         cmd.load_cgo(obj, name, 1.0)
         group_names = group_names + " " + name
+ 
+    cmd.group('pred_'+filename, group_names)
+    group_names = ""
 
+
+
+    if n_outputs==1:
+        name = "pred_na"
+        obj = []
+        color_array = charge_color((feats[:,-2:-1]>thr).astype(int))
+        for v_ix in range(len(verts)):
+            vert = verts[v_ix]
+            obj.extend(color_array[v_ix])
+            obj.extend([SPHERE, vert[0], vert[1], vert[2], dotSize])
+
+        cmd.load_cgo(obj, name, 1.0)
+        
+        name = "real_na"
+        obj = []
+        color_array = charge_color(feats[:,-1])
+        for v_ix in range(len(verts)):
+            vert = verts[v_ix]
+            obj.extend(color_array[v_ix])
+            obj.extend([SPHERE, vert[0], vert[1], vert[2], dotSize])
+
+        cmd.load_cgo(obj, name, 1.0) 
+
+        return 0
 
     for feat in range(0,n_outputs):
         name = "real_"+nmap[feat]
@@ -212,9 +246,9 @@ def load_npy(
 
         cmd.load_cgo(obj, name, 1.0)
         group_names = group_names + " " + name
+   
+    cmd.group('real_'+filename, group_names)
 
-    if n_outputs!=5:
-        return 0
     name = "pred_na"
     obj = []
     color_array = iface_color(np.argmax(feats[:,-2*n_outputs:-n_outputs], axis=1))
@@ -224,7 +258,7 @@ def load_npy(
         obj.extend([SPHERE, vert[0], vert[1], vert[2], dotSize])
 
     cmd.load_cgo(obj, name, 1.0)
-    group_names = group_names + " " + name
+
 
     name = "real_na"
     obj = []
@@ -235,9 +269,7 @@ def load_npy(
         obj.extend([SPHERE, vert[0], vert[1], vert[2], dotSize])
 
     cmd.load_cgo(obj, name, 1.0) 
-    group_names = group_names + " " + name
 
-    cmd.group(filename, group_names)
     return 0
     # Draw surface charges.
     
