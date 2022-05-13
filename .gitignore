@@ -8,4 +8,5 @@ Untitled1.ipynb
 data_preprocessing/npys/
 data_preprocessing/__pycache__/
 masif_pymol_plugin/__pycache__/
+masif_pymol_plugin/*.cif
 preds/
