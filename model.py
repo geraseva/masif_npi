@@ -63,23 +63,25 @@ def get_features_v(x, y, x_batch, y_batch, y_atomtype, k=16, gamma=1):
     # So we have to re-compute the values ourselves:
     idx = pairwise_distance_ij.argKmin(K=k, axis=1).view(-1)  # (N, K)
     
-    x_ik = y[idx].view(N, k, D)
+    x_ik = y[idx,:].view(N, k, D)
+
+    vecs=(x[:, None, :]-x_ik) # (N, K, D)   
     
-    dists = ((x[:, None, :] - x_ik) ** 2).sum(-1)
+    dists = (vecs ** 2).sum(-1)
 
-    dists = torch.pow(dists,-(1+gamma)/2).view(N,k,1)
-
+    dists = torch.pow(dists,-(1+gamma)/2) # (N, K)
+    
     _, num_dims = y_atomtype.size()
 
-    vecs=(x[:, None, :]-x_ik)
+
 
 
     #normalize coords by distance
-    norm_vec=torch.mul(vecs,dists).view(N, k, D, 1)
+    norm_vec=vecs*dists[:, :, None] #(N, k, D)
     
-    feature = y_atomtype[idx, :].view(N, k, 1, num_dims)
+    feature = y_atomtype[idx, :].view(N, k, num_dims)
 
-    feature=torch.mul(norm_vec, feature)
+    feature=norm_vec[:,:,:,None] * feature[:,:,None,:] # (N, k, D, num_dims )
 
 
     return torch.transpose(feature, 1, 3) # (N, num_dims, D, k )
@@ -97,7 +99,7 @@ class AtomNet_V(nn.Module):
             nn.Linear(args.chem_dims, args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
         )
-        self.dropout=nn.Dropout(args.dropout)
+        self.dropout=nn.Dropout2d(args.dropout)
         self.att=nn.Sequential(
             nn.Linear(self.k, 1),
             nn.ReLU()
@@ -105,10 +107,10 @@ class AtomNet_V(nn.Module):
         self.embedding = nn.Sequential(
             nn.Linear(args.chem_dims,args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
-            #nn.BatchNorm1d(args.chem_dims),
+            nn.BatchNorm1d(args.chem_dims),
             nn.Linear(args.chem_dims, args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
-            #nn.BatchNorm1d(args.chem_dims),
+            nn.BatchNorm1d(args.chem_dims),
             nn.Linear(args.chem_dims, args.chem_dims),
         )
 
@@ -119,7 +121,7 @@ class AtomNet_V(nn.Module):
         atomtypes=atomtypes[:,:self.args.atom_dims]
         atomtypes = self.transform_types(atomtypes)
         fx = get_features_v(xyz, atom_xyz, batch, atom_batch, atomtypes, k=self.k)
-        fx = self.att(self.dropout(fx)).view(-1,self.args.chem_dims,3)
+        fx = self.att(self.dropout(fx)).squeeze(-1)
         fx= torch.sqrt(torch.square(fx).sum(dim=-1, keepdim=False))
         fx = self.embedding(fx)
         return fx

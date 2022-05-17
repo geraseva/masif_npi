@@ -146,6 +146,12 @@ parser.add_argument(
     help="Which model to restart the training from",
 )
 parser.add_argument(
+    "--transfer_learning",
+    type=str,
+    default="",
+    help="Which model to use for parameters transfer",
+)
+parser.add_argument(
     "--n_rocauc_samples",
     type=int,
     default=100,

@@ -470,35 +470,7 @@ def iterate(
             P1 = extract_single(P1_batch, protein_it)
             P2 = None if args.single_protein else extract_single(P2_batch, protein_it)
 
-            '''
-            if args.random_rotation:
-                P1["rand_rot"] = protein_pair.rand_rot1.view(-1, 3, 3)[0]
-                P1["atom_center"] = protein_pair.atom_center1.view(-1, 1, 3)[0]
-                P1["xyz"] = P1["xyz"] - P1["atom_center"]
-                P1["xyz"] = (
-                    torch.matmul(P1["rand_rot"], P1["xyz"].T).T
-                ).contiguous()
-                P1["normals"] = (
-                    torch.matmul(P1["rand_rot"], P1["normals"].T).T
-                ).contiguous()
-                if not args.single_protein:
-                    P2["rand_rot"] = protein_pair.rand_rot2.view(-1, 3, 3)[0]
-                    P2["atom_center"] = protein_pair.atom_center2.view(-1, 1, 3)[0]
-                    P2["xyz"] = P2["xyz"] - P2["atom_center"]
-                    P2["xyz"] = (
-                        torch.matmul(P2["rand_rot"], P2["xyz"].T).T
-                    ).contiguous()
-                    P2["normals"] = (
-                        torch.matmul(P2["rand_rot"], P2["normals"].T).T
-                    ).contiguous()
-            else:
-                P1["rand_rot"] = torch.eye(3, device=P1["xyz"].device)
-                P1["atom_center"] = torch.zeros((1, 3), device=P1["xyz"].device)
-                if not args.single_protein:
-                    P2["rand_rot"] = torch.eye(3, device=P2["xyz"].device)
-                    P2["atom_center"] = torch.zeros((1, 3), device=P2["xyz"].device)
-            '''
-                    
+
             torch.cuda.synchronize()
             prediction_time = time.time()
             outputs = net(P1, P2)
@@ -533,15 +505,13 @@ def iterate(
                     if parameter.requires_grad:
                         summary_writer.add_histogram(
                             f"Gradients/Atomnet/para_{para_it}_{parameter.shape}",
-                            parameter.grad.view(-1),
-                            epoch_number,
+                            parameter.grad.view(-1)
                         )
                 for para_it, parameter in enumerate(net.conv.parameters()):
                     if parameter.requires_grad:
                         summary_writer.add_histogram(
                             f"Gradients/Conv/para_{para_it}_{parameter.shape}",
-                            parameter.grad.view(-1),
-                            epoch_number,
+                            parameter.grad.view(-1)
                         )
 
                 for d, features in enumerate(P1["input_features"].T):

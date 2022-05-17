@@ -75,8 +75,8 @@ def charge_color(charges):
     # Assume a std deviation equal for all proteins....
     max_val = 1.0
     min_val = -1.0
-
-    norm_charges = charges
+    print(charges)
+    norm_charges = (charges-min(charges))/(max(charges)-min(charges))*2-1
     blue_charges = np.array(norm_charges)
     red_charges = np.array(norm_charges)
     blue_charges[blue_charges < 0] = 0

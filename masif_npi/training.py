@@ -7,6 +7,7 @@ from torch.utils.data import random_split
 from torch_geometric.loader import DataLoader
 from torch_geometric.transforms import Compose
 from pathlib import Path
+import json
 
 # Custom data loader and model:
 from data import NpiDataset, PairData, CenterPairAtoms
@@ -20,6 +21,7 @@ import gc
 
 # Parse the arguments, prepare the TensorBoard writer:
 args = parser.parse_args()
+
 print('Start training')
 print('Arguments:',args)
 writer = SummaryWriter("runs/{}".format(args.experiment_name))
@@ -28,6 +30,9 @@ torch.cuda.set_device(args.device)
 
 if not Path("models/").exists():
     Path("models/").mkdir(exist_ok=False)
+
+with open(model_path + '_args.json', 'w') as f:
+    json.dump(args.__dict__, f, indent=2)
 
 # Ensure reproducibility:
 torch.backends.cudnn.benchmark = True
@@ -89,6 +94,28 @@ if args.restart_training != "":
     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     starting_epoch = checkpoint["epoch"]
     best_loss = checkpoint["best_loss"]
+
+elif args.transfer_learning != "":
+    task=args.transfer_learning[:args.transfer_learning.index('_epoch')]
+    args1 = parser.parse_args()
+    with open("models/" + task+'_args.json', 'r') as f:
+        args1.__dict__ = json.load(f)
+    net1 = dMaSIF(args1)
+    net1 = net1.to(args.device)
+    checkpoint = torch.load("models/" + args.transfer_learning, map_location=args.device)
+    net1.load_state_dict(checkpoint["model_state_dict"])
+    try:
+        net.atomnet.load_state_dict(net1.atomnet.state_dict())
+    except:
+        pass 
+    else:
+        try:
+            net.conv.load_state_dict(net1.conv.state_dict())
+        except:
+            pass 
+    net1=None
+
+
 
 # Training loop (~100 times) over the dataset:
 gc.collect()
