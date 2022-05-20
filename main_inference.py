@@ -1,6 +1,7 @@
 # Standard imports:
 import numpy as np
 import torch
+import json
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import random_split
 from torch_geometric.data import DataLoader
@@ -8,7 +9,7 @@ from torch_geometric.transforms import Compose
 from pathlib import Path
 
 # Custom data loader and model:
-from data import ProteinPairsSurfaces, PairData, CenterPairAtoms, load_protein_pair
+from data import PairData, CenterPairAtoms, load_protein_pair
 from data import RandomRotationPairAtoms, NormalizeChemFeatures, iface_valid_filter
 from model import dMaSIF
 from data_iteration import iterate
@@ -18,6 +19,11 @@ from Arguments import parser
 args = parser.parse_args()
 model_path = "models/" + args.experiment_name
 save_predictions_path = Path("preds/" + args.experiment_name)
+single_pdb=args.single_pdb
+pdb_list=args.pdb_list
+
+with open(model_path[:model_path.index('_epoch')]+'_args.json', 'r') as f:
+    args.__dict__ = json.load(f)
 
 # Ensure reproducability:
 torch.backends.cudnn.deterministic = True
@@ -39,32 +45,18 @@ else:
 
 aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5}
 
-if args.single_pdb != "":
+if single_pdb != "":
     single_data_dir = "./data_preprocessing/npys/"
-    test_dataset = [load_protein_pair(args.single_pdb, single_data_dir,single_pdb=True,la=la, aa=aa)]
-    test_pdb_ids = [args.single_pdb]
-elif args.pdb_list != "":
-    with open(args.pdb_list) as f:
-        pdb_list = f.read().splitlines()
+    test_dataset = [load_protein_pair(single_pdb, single_data_dir,single_pdb=True,la=la, aa=aa)]
+    test_pdb_ids = [single_pdb]
+elif pdb_list != "":
+    with open(pdb_list) as f:
+        pdb_l = f.read().splitlines()
     single_data_dir = "./data_preprocessing/npys/"
-    test_dataset = [load_protein_pair(pdb, single_data_dir,single_pdb=True,la=la) for pdb in pdb_list]
-    test_pdb_ids = [pdb for pdb in pdb_list]
+    test_dataset = [load_protein_pair(pdb, single_data_dir,single_pdb=True,la=la) for pdb in pdb_l]
+    test_pdb_ids = [pdb for pdb in pdb_l]
 else:
-    test_dataset = ProteinPairsSurfaces(
-        "surface_data", train=False, ppi=args.search, transform=transformations
-    )
-    test_pdb_ids = (
-        np.load("surface_data/processed/testing_pairs_data_ids.npy")
-        if args.site
-        else np.load("surface_data/processed/testing_pairs_data_ids_ppi.npy")
-    )
-
-    test_dataset = [
-        (data, pdb_id)
-        for data, pdb_id in zip(test_dataset, test_pdb_ids)
-        if iface_valid_filter(data)
-    ]
-    test_dataset, test_pdb_ids = list(zip(*test_dataset))
+    raise Error
 
 
 # PyTorch geometric expects an explicit list of "batched variables":
