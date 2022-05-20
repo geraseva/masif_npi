@@ -107,10 +107,10 @@ class AtomNet_V(nn.Module):
         self.embedding = nn.Sequential(
             nn.Linear(args.chem_dims,args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.BatchNorm1d(args.chem_dims),
+            #nn.BatchNorm1d(args.chem_dims),
             nn.Linear(args.chem_dims, args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.BatchNorm1d(args.chem_dims),
+            #nn.BatchNorm1d(args.chem_dims),
             nn.Linear(args.chem_dims, args.chem_dims),
         )
 
