@@ -100,10 +100,11 @@ class AtomNet_V(nn.Module):
             nn.LeakyReLU(negative_slope=0.2),
         )
         self.dropout=nn.Dropout2d(args.dropout)
+
         self.att=nn.Sequential(
-            nn.Linear(self.k, 1),
-            nn.ReLU()
-        )
+            nn.Linear(self.k, 1, bias=False), 
+            nn.ReLU())
+        
         self.embedding = nn.Sequential(
             nn.Linear(args.chem_dims,args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
