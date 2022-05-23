@@ -157,7 +157,6 @@ def load_npy(
     ignore_normal = False
     with_normal = False
     with_color = False
-    print(feats.shape[1])
     group_names = ""
     for feat in range(0,in_channels):
         name = "input_feature_"+str(feat)
