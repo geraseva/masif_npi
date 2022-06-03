@@ -52,8 +52,8 @@ if single_pdb != "":
 elif pdb_list != "":
     with open(pdb_list) as f:
         pdb_l = f.read().splitlines()
-    single_data_dir = "./data_preprocessing/npys/"
-    test_dataset = [load_protein_pair(pdb, single_data_dir,single_pdb=True,la=la) for pdb in pdb_l]
+    single_data_dir = "./masif_npi/npys/"
+    test_dataset = [load_protein_pair(pdb, single_data_dir,single_pdb=True,la=la, aa=aa) for pdb in pdb_l]
     test_pdb_ids = [pdb for pdb in pdb_l]
 else:
     raise Error
@@ -62,11 +62,10 @@ else:
 # PyTorch geometric expects an explicit list of "batched variables":
 batch_vars = ["xyz_p1", "xyz_p2", "atom_coords_p1", "atom_coords_p2"]
 test_loader = DataLoader(
-    test_dataset, batch_size=args.batch_size, follow_batch=batch_vars
+    test_dataset, batch_size=1, follow_batch=batch_vars
 )
 
 net = dMaSIF(args)
-# net.load_state_dict(torch.load(model_path, map_location=args.device))
 net.load_state_dict(
     torch.load(model_path, map_location=args.device)["model_state_dict"]
 )
@@ -84,7 +83,8 @@ info = iterate(
     roccurve=True
 )
 np.save(f"preds/{args.experiment_name}_roc.npy", info["ROC_curve"])
-print(info["ROC-AUC"])
+print(zip(test_pdb_ids,info["ROC-AUC"]))
+print(np.mean(info["ROC-AUC"]),np.std(info["ROC-AUC"]))
 
 #np.save(f"timings/{args.experiment_name}_convtime.npy", info["conv_time"])
 #np.save(f"timings/{args.experiment_name}_memoryusage.npy", info["memory_usage"])
