@@ -23,6 +23,14 @@ parser.add_argument(
     choices=["AtomNet", "AtomNet_MP", "AtomNet_V"],
     help="Which model to use for feature generation",
 )
+
+parser.add_argument(
+    "--dataset",
+    type=str,
+    default="NpiDataset",
+    choices=["NpiDataset", "ProteinPairsSurfaces"],
+    help="Which dataset to use",
+) 
 parser.add_argument("--profile", type=bool, default=False, help="Profile code")
 
 # Geometric parameters

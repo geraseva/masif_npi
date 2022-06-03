@@ -8,10 +8,12 @@ from sklearn.metrics import roc_auc_score, roc_curve
 from pathlib import Path
 import math
 from tqdm import tqdm
+from scipy.spatial.transform import Rotation
 from geometry_processing import save_vtk
 from helper import numpy, diagonal_ranges
 import time
 import gc
+import warnings 
 
 class FocalLoss(nn.Module):
     r"""Criterion that computes Focal loss.
@@ -73,7 +75,7 @@ class FocalLoss(nn.Module):
             raise ValueError(
                 "input and target must be in the same device. Got: {}" .format(
                     input.device, target.device))
-        if input.shape[1]==1 or len(input.shape)==1: 
+        if len(input.shape)==1 or input.shape[1]==1: 
             # binary
             input_soft = torch.sigmoid(input.squeeze())
             input_soft=torch.stack((1. - input_soft, input_soft), dim=1) + self.eps
@@ -83,7 +85,7 @@ class FocalLoss(nn.Module):
             input_soft = F.softmax(input, dim=1) + self.eps
 
         # create the labels one hot tensor
-        target_one_hot = F.one_hot(target, num_classes=input_soft.shape[1])
+        target_one_hot = F.one_hot(target.to(torch.int64), num_classes=input_soft.shape[1])
 
         # compute the actual focal loss
         weight = torch.pow(1. - input_soft, self.gamma)
@@ -235,7 +237,6 @@ def save_protein_batch_single(protein_pair_id, P, save_path, pdb_idx):
 
     coloring = torch.cat([inputs, embedding, predictions, labels], axis=1)
 
-    save_vtk(str(save_path / pdb_id) + f"_pred_emb{emb_id}", xyz, values=coloring)
     np.save(str(save_path / pdb_id) + "_predcoords", numpy(xyz))
     np.save(str(save_path / pdb_id) + f"_predfeatures_emb{emb_id}", numpy(coloring))
 
@@ -289,18 +290,19 @@ def process(args, protein_pair, net):
     P1 = process_single(protein_pair, chain_idx=1)
     if not "gen_xyz_p1" in protein_pair.keys:
         net.preprocess_surface(P1)
-        #if P1["mesh_labels"] is not None:
-        #    project_iface_labels(P1)
-    if "gen_labels_p1" not in protein_pair.keys:
-        P2 = process_single(protein_pair, chain_idx=2)
-        project_npi_labels(P1, P2, threshold=5.0)
+        if P1["mesh_labels"] is not None:
+            project_iface_labels(P1)
+        else:
+            if "gen_labels_p1" not in protein_pair.keys:
+                P2 = process_single(protein_pair, chain_idx=2)
+                project_npi_labels(P1, P2, threshold=5.0)
     P2 = None
     if not args.single_protein:
         P2 = process_single(protein_pair, chain_idx=2)
         if not "gen_xyz_p2" in protein_pair.keys:
             net.preprocess_surface(P2)
-            #if P2["mesh_labels"] is not None:
-            #    project_iface_labels(P2)
+            if P2["mesh_labels"] is not None:
+                project_iface_labels(P2)
 
     return P1, P2
 
@@ -527,40 +529,36 @@ def iterate(
                         batch_ids[protein_it], P2, save_path, pdb_idx=2
                     )
 
-            try:
-                if sampled_labels is not None:
-                    if args.npi:
-                        a=np.rint(numpy(sampled_labels))
-                        b=numpy(F.softmax(sampled_preds, dim=1))
-                        roc_auc = roc_auc_score(
-                            a,b, multi_class='ovo', 
-                            labels=list(range(args.n_outputs))
-                        )
-                        if roccurve:
-                            tp=[]
-                            fp=[]
-                            for i in range(args.n_outputs):
-                                tpr, fpr, _=roc_curve(a==i, b[:,i])
-                                tp.append(tpr)
-                                fp.append(fpr)
-                            tp=np.array(tp)
-                            fp=np.array(fp)
-
-                    else:
-                        a=np.rint(numpy(sampled_labels.view(-1)))
-                        b=numpy(sampled_preds.view(-1))
-                        roc_auc = roc_auc_score(a, b)
-                        if roccurve:
-                            tp, fp, _=roc_curve(a, b)
-                            tp=np.array(tp)
-                            fp=np.array(fp)
+            if sampled_labels is not None and sampled_labels.shape[0]>0:
+                if args.npi:
+                    a=np.rint(numpy(sampled_labels))
+                    b=numpy(F.softmax(sampled_preds, dim=1))
+                    roc_auc = roc_auc_score(
+                        a,b, multi_class='ovo', 
+                        labels=list(range(args.n_outputs))
+                    )
+                    if roccurve:
+                        tp=[]
+                        fp=[]
+                        for i in range(args.n_outputs):
+                            with warnings.catch_warnings():
+                                warnings.filterwarnings("ignore")
+                                tpr, fpr, _=roc_curve(a, b[:,i], pos_label=i)
+                            tp.append(tpr)
+                            fp.append(fpr)
+                        tp=np.array(tp, dtype=object)
+                        fp=np.array(fp, dtype=object)
                 else:
-                    roc_auc = 0.0
-            except Exception as e:
-                print("Problem with computing roc-auc")
-                print(e)
-                continue
-
+                    a=np.rint(numpy(sampled_labels.view(-1)))
+                    b=numpy(sampled_preds.view(-1))
+                    roc_auc = roc_auc_score(a, b)
+                    if roccurve:
+                        tp, fp, _=roc_curve(a, b)
+                        tp=np.array([tp], dtype=object)
+                        fp=np.array([fp], dtype=object)
+            else:
+                roc_auc = 0.0
+           
             R_values = outputs["R_values"]
 
             info.append(
@@ -578,17 +576,23 @@ def iterate(
             )
             torch.cuda.synchronize()
             iteration_time = time.time() - iteration_time
-            #del outputs
-            #del P1
-            #del P2
+
 
     # Turn a list of dicts into a dict of lists:
     newdict = {}
     for k, v in [(key, d[key]) for d in info for key in d]:
         if k not in newdict:
-            newdict[k] = [v]
+            if k=='ROC_curve':
+                newdict[k] = v
+            else:
+                newdict[k] = [v]
         else:
-            newdict[k].append(v)
+            if k=='ROC_curve':
+                for i in range(newdict[k][0].shape[0]):
+                    newdict[k][0][i] = np.concatenate((newdict[k][0][i],v[0][i]))
+                    newdict[k][1][i] = np.concatenate((newdict[k][1][i],v[1][i]))
+            else:
+                newdict[k].append(v)
     info = newdict
 
     gc.collect()
@@ -603,23 +607,6 @@ def iterate_surface_precompute(dataset, net, args):
             protein_pair.to(args.device)
         P1, P2 = process(args, protein_pair, net)
 
-
-        '''
-        if args.random_rotation:
-            P1["rand_rot"] = protein_pair.rand_rot1
-            P1["atom_center"] = protein_pair.atom_center1
-            P1["xyz"] = (
-                torch.matmul(P1["rand_rot"].T, P1["xyz"].T).T + P1["atom_center"]
-            )
-            P1["normals"] = torch.matmul(P1["rand_rot"].T, P1["normals"].T).T
-            if not args.single_protein:
-                P2["rand_rot"] = protein_pair.rand_rot2
-                P2["atom_center"] = protein_pair.atom_center2
-                P2["xyz"] = (
-                    torch.matmul(P2["rand_rot"].T, P2["xyz"].T).T + P2["atom_center"]
-                )
-                P2["normals"] = torch.matmul(P2["rand_rot"].T, P2["normals"].T).T
-        '''
         protein_pair = protein_pair.to_data_list()[0]
         protein_pair.gen_xyz_p1 = P1["xyz"]
         protein_pair.gen_normals_p1 = P1["normals"]
@@ -646,3 +633,68 @@ def iterate_surface_precompute(dataset, net, args):
         if iface_valid_filter(protein_pair):
             processed_dataset.append(protein_pair)
     return processed_dataset
+
+class SurfacePrecompute(object):
+    r"""Precomputation of surface"""
+
+    def __init__(self, net, args):
+        self.args=args
+        self.net=net
+
+    def __call__(self, protein_pair):
+        
+
+        protein_pair.xyz_p1_batch=torch.zeros(protein_pair.xyz_p1.shape[:-1], dtype=torch.int)
+        protein_pair.atom_coords_p1_batch=torch.zeros(protein_pair.atom_coords_p1.shape[:-1], dtype=torch.int)
+        protein_pair.xyz_p2_batch=torch.zeros(protein_pair.xyz_p2.shape[:-1], dtype=torch.int)
+        protein_pair.atom_coords_p2_batch=torch.zeros(protein_pair.atom_coords_p2.shape[:-1], dtype=torch.int)
+
+        protein_pair.to(self.args.device)
+
+        if self.args.random_rotation:
+            R1 = tensor(Rotation.random().as_matrix())
+            protein_pair.rand_rot1 = R1
+            atom_center1 = protein_pair.atom_coords_p1.mean(dim=-2, keepdim=True)
+            protein_pair.atom_center1 = atom_center1
+            protein_pair.atom_coords_p1 = (torch.matmul(R1, protein_pair.atom_coords_p1.T).T - atom_center1)
+            protein_pair.xyz_p1 = (torch.matmul(R1, protein_pair.xyz_p1.T).T - atom_center1).contiguous()
+            protein_pair.normals_p1 = (torch.matmul(R1, protein_pair.normals_p1.T).T)
+            if not self.args.single_protein:
+                R2 = tensor(Rotation.random().as_matrix())
+                protein_pair.rand_rot2 = R2
+                atom_center2 = protein_pair.atom_coords_p2.mean(dim=-2, keepdim=True)
+                protein_pair.atom_center2 = atom_center2
+                protein_pair.atom_coords_p2 = (torch.matmul(R2, protein_pair.atom_coords_p2.T).T - atom_center2)
+                protein_pair.xyz_p2 = (torch.matmul(R2, protein_pair.xyz_p2.T).T - atom_center2).contiguous()
+                protein_pair.normals_p2 = (torch.matmul(R2, protein_pair.normals_p2.T).T)
+
+
+        P1, P2 = process(self.args, protein_pair, self.net)
+
+        protein_pair.gen_xyz_p1 = P1["xyz"]
+        protein_pair.gen_normals_p1 = P1["normals"]
+        protein_pair.gen_batch_p1 = P1["batch"]
+        protein_pair.gen_labels_p1 = P1["labels"]
+
+        if not self.args.single_protein:
+            protein_pair.gen_xyz_p2 = P2["xyz"]
+            protein_pair.gen_normals_p2 = P2["normals"]
+            protein_pair.gen_batch_p2 = P2["batch"]
+            protein_pair.gen_labels_p2 = P2["labels"]
+        else: 
+            protein_pair.xyz_p2=None
+            protein_pair.face_p2=None
+            protein_pair.chemical_features_p2=None
+            protein_pair.y_p2=None
+            protein_pair.normals_p2=None
+            protein_pair.center_location_p2=None
+            protein_pair.atom_coords_p2=None
+            protein_pair.atom_types_p2=None
+            protein_pair.atom_res_p2=None
+
+        protein_pair.to("cpu")
+        return protein_pair
+
+
+    def __repr__(self):
+        return "{}()".format(self.__class__.__name__)

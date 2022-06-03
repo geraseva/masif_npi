@@ -13,6 +13,7 @@ from data_preprocessing.convert_pdb2npy import convert_pdbs
 from data_preprocessing.convert_ply2npy import convert_plys
 from data_iteration import project_npi_labels
 from tqdm import tqdm
+import sys
 
 tensor = torch.FloatTensor
 inttensor = torch.LongTensor
@@ -52,22 +53,46 @@ class RandomRotationPairAtoms(object):
     r"""Randomly rotate a protein"""
 
     def __call__(self, data):
+
+        #undo previous rotation
+        if 'rand_rot1' in data.keys:
+            data.atom_coords_p1 = torch.matmul(data.rand_rot1.T, data.atom_coords_p1.T).T
+            if 'xyz_p1' in data.keys: 
+                data.xyz_p1 = torch.matmul(data.rand_rot1.T, data.xyz_p1.T).T
+                data.normals_p1 = torch.matmul(data.rand_rot1.T, data.normals_p1.T).T  
+            if 'gen_xyz_p1' in data.keys: 
+                data.gen_xyz_p1 = torch.matmul(data.rand_rot1.T, data.gen_xyz_p1.T).T
+                data.gen_normals_p1 = torch.matmul(data.rand_rot1.T, data.gen_normals_p1.T).T         
+
         R1 = tensor(Rotation.random().as_matrix())
-        R2 = tensor(Rotation.random().as_matrix())
-
         data.rand_rot1 = R1
-        data.rand_rot2 = R2
-
         data.atom_coords_p1 = torch.matmul(R1, data.atom_coords_p1.T).T
-        data.atom_coords_p2 = torch.matmul(R2, data.atom_coords_p2.T).T
-
-        try:
+        if 'xyz_p1' in data.keys: 
             data.xyz_p1 = torch.matmul(R1, data.xyz_p1.T).T
-            data.normals_p1 = torch.matmul(R1, data.normals_p1.T).T
+            data.normals_p1 = torch.matmul(R1, data.normals_p1.T).T        
+        if 'gen_xyz_p1' in data.keys: 
+            data.gen_xyz_p1 = torch.matmul(R1, data.gen_xyz_p1.T).T
+            data.gen_normals_p1 = torch.matmul(R1, data.gen_normals_p1.T).T        
+        try:
+            if 'rand_rot2' in data.keys:
+                data.atom_coords_p2 = torch.matmul(data.rand_rot2.T, data.atom_coords_p2.T).T
+                if 'xyz_p2' in data.keys: 
+                    data.xyz_p2 = torch.matmul(data.rand_rot2.T, data.xyz_p2.T).T
+                    data.normals_p2 = torch.matmul(data.rand_rot2.T, data.normals_p2.T).T  
+                if 'gen_xyz_p2' in data.keys: 
+                    data.gen_xyz_p2 = torch.matmul(data.rand_rot2.T, data.gen_xyz_p2.T).T
+                    data.gen_normals_p2 = torch.matmul(data.rand_rot2.T, data.gen_normals_p2.T).T        
 
-            data.xyz_p2 = torch.matmul(R2, data.xyz_p2.T).T
-            data.normals_p2 = torch.matmul(R2, data.normals_p2.T).T
-
+            R2 = tensor(Rotation.random().as_matrix())
+            data.rand_rot2 = R2
+            data.atom_coords_p2 = torch.matmul(R2, data.atom_coords_p2.T).T
+            if 'xyz_p2' in data.keys: 
+                data.xyz_p2 = torch.matmul(R2, data.xyz_p2.T).T
+                data.normals_p2 = torch.matmul(R2, data.normals_p2.T).T
+            if 'gen_xyz_p2' in data.keys: 
+                data.gen_xyz_p2 = torch.matmul(R2, data.gen_xyz_p2.T).T
+                data.gen_normals_p2 = torch.matmul(R2, data.gen_normals_p2.T).T  
+   
         except AttributeError:
             return data 
 
@@ -82,18 +107,24 @@ class CenterPairAtoms(object):
     r"""Centers a protein"""
 
     def __call__(self, data):
-        atom_center1 = data.atom_coords_p1.mean(dim=-2, keepdim=True)
-        atom_center2 = data.atom_coords_p2.mean(dim=-2, keepdim=True)
-
-        data.atom_coords_p1 = data.atom_coords_p1 - atom_center1
-        data.atom_coords_p2 = data.atom_coords_p2 - atom_center2
-
-        data.atom_center1 = atom_center1
-        data.atom_center2 = atom_center2
-
+        
+        if 'atom_center1' not in data.keys:
+            atom_center1 = data.atom_coords_p1.mean(dim=-2, keepdim=True)
+            data.atom_coords_p1 = data.atom_coords_p1 - atom_center1
+            data.atom_center1 = atom_center1
+            if 'xyz_p1' in data.keys: 
+                data.xyz_p1 = data.xyz_p1 - atom_center1
+            if 'gen_xyz_p1' in data.keys: 
+                data.gen_xyz_p1 = data.gen_xyz_p1 - atom_center1
         try:
-            data.xyz_p1 = data.xyz_p1 - atom_center1
-            data.xyz_p2 = data.xyz_p2 - atom_center2
+            if 'atom_center2' not in data.keys:
+                atom_center2 = data.atom_coords_p2.mean(dim=-2, keepdim=True)
+                data.atom_coords_p2 = data.atom_coords_p2 - atom_center2
+                data.atom_center2 = atom_center2
+                if 'xyz_p2' in data.keys: 
+                    data.xyz_p2 = data.xyz_p2 - atom_center2
+                if 'gen_xyz_p2' in data.keys: 
+                    data.gen_xyz_p2 = data.gen_xyz_p2 - atom_center2
         except AttributeError:
             return data 
 
@@ -293,10 +324,7 @@ def load_protein_pair(pdb_id, data_dir,single_pdb=False, aa=None, la=None):
 
     p1 = load_protein_npy(p1_id, data_dir, center=False,single_pdb=single_pdb, atom_encoder=aa)
     p2 = load_protein_npy(p2_id, data_dir, center=False,single_pdb=single_pdb, atom_encoder=aa, label_encoder=la)
-    # pdist = ((p1['xyz'][:,None,:]-p2['xyz'][None,:,:])**2).sum(-1).sqrt()
-    # pdist = pdist<2.0
-    # y_p1 = (pdist.sum(1)>0).to(torch.float).reshape(-1,1)
-    # y_p2 = (pdist.sum(0)>0).to(torch.float).reshape(-1,1)
+
     y_p1 = p1.get("y")
     y_p2 = p2.get("y")
 
@@ -323,6 +351,158 @@ def load_protein_pair(pdb_id, data_dir,single_pdb=False, aa=None, la=None):
     return protein_pair_data
 
 
+class ProteinPairsSurfaces(InMemoryDataset):
+    url = ""
+
+    def __init__(self, root, ppi=False, train=True, transform=None, pre_transform=None, pre_filter=None):
+        self.ppi = ppi
+        self.aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, 'Se':4, "SE": 4, "-": 5 }
+
+        super(ProteinPairsSurfaces, self).__init__(root, transform, pre_transform,pre_filter)
+        path = self.processed_paths[0] if train else self.processed_paths[1]
+        self.data, self.slices = torch.load(path)
+
+
+    @property
+    def raw_file_names(self):
+        return ["masif_site_masif_search_pdbs_and_ply_files.tar.gz"]
+
+    @property
+    def processed_file_names(self):
+        if not self.ppi:
+            file_names = [
+                "training_pairs_data.pt",
+                "testing_pairs_data.pt",
+                "training_pairs_data_ids.npy",
+                "testing_pairs_data_ids.npy",
+            ]
+        else:
+            file_names = [
+                "training_pairs_data_ppi.pt",
+                "testing_pairs_data_ppi.pt",
+                "training_pairs_data_ids_ppi.npy",
+                "testing_pairs_data_ids_ppi.npy",
+            ]
+        return file_names
+
+    def download(self):
+        url = 'https://zenodo.org/record/2625420/files/masif_site_masif_search_pdbs_and_ply_files.tar.gz'
+        target_path = self.raw_paths[0]
+        response = requests.get(url, stream=True)
+        if response.status_code == 200:
+            with open(target_path, 'wb') as f:
+                f.write(response.raw.read())
+                
+        #raise RuntimeError(
+        #    "Dataset not found. Please download {} from {} and move it to {}".format(
+        #        self.raw_file_names, self.url, self.raw_dir
+        #    )
+        #)
+
+    def process(self):
+        pdb_dir = Path(self.root) / "raw" / "01-benchmark_pdbs"
+        surf_dir = Path(self.root) / "raw" / "01-benchmark_surfaces"
+        protein_dir = Path(self.root) / "raw" / "01-benchmark_surfaces_npy"
+        lists_dir = Path('./lists')
+
+        # Untar surface files
+        if not (pdb_dir.exists() and surf_dir.exists()):
+            print(self.raw_paths[0])
+            tar = tarfile.open(self.raw_paths[0])
+            tar.extractall(self.raw_dir)
+            tar.close()
+
+        if not protein_dir.exists():
+            protein_dir.mkdir(parents=False, exist_ok=False)
+            convert_plys(surf_dir,protein_dir)
+            convert_pdbs(pdb_dir,protein_dir)
+
+        with open(lists_dir / "training.txt") as f_tr, open(
+            lists_dir / "testing.txt"
+        ) as f_ts:
+            training_list = sorted(f_tr.read().splitlines())
+            testing_list = sorted(f_ts.read().splitlines())
+
+        with open(lists_dir / "training_ppi.txt") as f_tr, open(
+            lists_dir / "testing_ppi.txt"
+        ) as f_ts:
+            training_pairs_list = sorted(f_tr.read().splitlines())
+            testing_pairs_list = sorted(f_ts.read().splitlines())
+            pairs_list = sorted(training_pairs_list + testing_pairs_list)
+
+        if not self.ppi:
+            training_pairs_list = []
+            for p in pairs_list:
+                pspl = p.split("_")
+                p1 = pspl[0] + "_" + pspl[1]
+                p2 = pspl[0] + "_" + pspl[2]
+
+                if p1 in training_list:
+                    training_pairs_list.append(p)
+                if p2 in training_list:
+                    training_pairs_list.append(pspl[0] + "_" + pspl[2] + "_" + pspl[1])
+
+            testing_pairs_list = []
+            for p in pairs_list:
+                pspl = p.split("_")
+                p1 = pspl[0] + "_" + pspl[1]
+                p2 = pspl[0] + "_" + pspl[2]
+                if p1 in testing_list:
+                    testing_pairs_list.append(p)
+                if p2 in testing_list:
+                    testing_pairs_list.append(pspl[0] + "_" + pspl[2] + "_" + pspl[1])
+
+        # # Read data into huge `Data` list.
+        training_pairs_data = []
+        training_pairs_data_ids = []
+        print('Loading training pairs', file=sys.stderr)
+        for p in tqdm(training_pairs_list):
+            try:
+                protein_pair = load_protein_pair(p, str(protein_dir), aa=self.aa)
+            except FileNotFoundError:
+                continue
+            training_pairs_data.append(protein_pair)
+            training_pairs_data_ids.append(p)
+
+        testing_pairs_data = []
+        testing_pairs_data_ids = []
+        print('Loading testing pairs', file=sys.stderr)
+        for p in tqdm(testing_pairs_list):
+            try:
+                protein_pair = load_protein_pair(p, str(protein_dir), aa=self.aa)
+            except FileNotFoundError:
+                continue
+            testing_pairs_data.append(protein_pair)
+            testing_pairs_data_ids.append(p)
+
+        if self.pre_transform is not None:
+            print('Precomputing training pairs', file=sys.stderr)
+            training_pairs_data = [
+                self.pre_transform(data) for data in tqdm(training_pairs_data)
+            ]
+            print('Precomputing testing pairs', file=sys.stderr)
+            testing_pairs_data = [
+                self.pre_transform(data) for data in tqdm(testing_pairs_data)
+            ]
+
+        if self.pre_filter is not None:
+            training_pairs_data = [
+                data for data in training_pairs_data if self.pre_filter(data)
+            ]
+            testing_pairs_data = [
+                data for data in testing_pairs_data if self.pre_filter(data)
+            ]
+
+        training_pairs_data, training_pairs_slices = self.collate(training_pairs_data)
+        torch.save(
+            (training_pairs_data, training_pairs_slices), self.processed_paths[0]
+        )
+        np.save(self.processed_paths[2], training_pairs_data_ids)
+        testing_pairs_data, testing_pairs_slices = self.collate(testing_pairs_data)
+        torch.save((testing_pairs_data, testing_pairs_slices), self.processed_paths[1])
+        np.save(self.processed_paths[3], testing_pairs_data_ids)
+
+
 
 class NpiDataset(InMemoryDataset):
 
@@ -344,7 +524,7 @@ class NpiDataset(InMemoryDataset):
 
         self.aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5 }
         
-        super().__init__(None, transform, None)
+        super(NpiDataset, self).__init__(None, transform, None)
 
         self.data, self.slices = torch.load(self.processed_paths[0])
     
@@ -402,4 +582,5 @@ class NpiDataset(InMemoryDataset):
             (processed_dataset, slices), self.processed_paths[0]
         )
         np.save(self.processed_paths[1], processed_idx)
+
 
