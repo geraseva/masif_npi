@@ -61,19 +61,21 @@ else:
     binary=False
 # Load the train dataset:
 if args.dataset=='NpiDataset':
-    full_dataset = NpiDataset(
-            "lists/training_npi.list", net=net, transform=transformations, binary=binary
+    full_dataset = NpiDataset('npi_dataset', "lists/training_npi.list", 
+        transform=transformations, pre_transform=SurfacePrecompute(net, args), 
+        pre_filter=iface_valid_filter, binary=binary
     )
-    test_dataset = NpiDataset(
-            "lists/testing_npi.list", net=net, transform=transformations, binary=binary
+    test_dataset = NpiDataset('npi_dataset', "lists/testing_npi.list", 
+        transform=transformations, pre_transform=SurfacePrecompute(net, args), 
+        pre_filter=iface_valid_filter, binary=binary
     )
 elif args.dataset=='ProteinPairsSurfaces':
     full_dataset = ProteinPairsSurfaces(
-        "npys", ppi=args.search, train=True, transform=transformations, 
+        "surface_data", ppi=args.search, train=True, transform=transformations, 
         pre_transform=SurfacePrecompute(net, args), pre_filter=iface_valid_filter
     )
     test_dataset = ProteinPairsSurfaces(
-        "npys", ppi=args.search, train=False, transform=transformations,
+        "surface_data", ppi=args.search, train=False, transform=transformations,
         pre_transform=SurfacePrecompute(net, args), pre_filter=iface_valid_filter
     )
 # Train/Validation split:

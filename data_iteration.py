@@ -293,9 +293,8 @@ def process(args, protein_pair, net):
         if P1["mesh_labels"] is not None:
             project_iface_labels(P1)
         else:
-            if "gen_labels_p1" not in protein_pair.keys:
-                P2 = process_single(protein_pair, chain_idx=2)
-                project_npi_labels(P1, P2, threshold=5.0)
+            P2 = process_single(protein_pair, chain_idx=2)
+            project_npi_labels(P1, P2, threshold=5.0)
     P2 = None
     if not args.single_protein:
         P2 = process_single(protein_pair, chain_idx=2)
@@ -303,6 +302,8 @@ def process(args, protein_pair, net):
             net.preprocess_surface(P2)
             if P2["mesh_labels"] is not None:
                 project_iface_labels(P2)
+            else:
+                project_npi_labels(P2, P1, threshold=5.0)
 
     return P1, P2
 
@@ -644,9 +645,11 @@ class SurfacePrecompute(object):
     def __call__(self, protein_pair):
         
 
-        protein_pair.xyz_p1_batch=torch.zeros(protein_pair.xyz_p1.shape[:-1], dtype=torch.int)
+        if 'xyz_p1' in protein_pair.keys:
+            protein_pair.xyz_p1_batch=torch.zeros(protein_pair.xyz_p1.shape[:-1], dtype=torch.int)
         protein_pair.atom_coords_p1_batch=torch.zeros(protein_pair.atom_coords_p1.shape[:-1], dtype=torch.int)
-        protein_pair.xyz_p2_batch=torch.zeros(protein_pair.xyz_p2.shape[:-1], dtype=torch.int)
+        if 'xyz_p2' in protein_pair.keys:
+            protein_pair.xyz_p2_batch=torch.zeros(protein_pair.xyz_p2.shape[:-1], dtype=torch.int)
         protein_pair.atom_coords_p2_batch=torch.zeros(protein_pair.atom_coords_p2.shape[:-1], dtype=torch.int)
 
         protein_pair.to(self.args.device)
@@ -657,16 +660,18 @@ class SurfacePrecompute(object):
             atom_center1 = protein_pair.atom_coords_p1.mean(dim=-2, keepdim=True)
             protein_pair.atom_center1 = atom_center1
             protein_pair.atom_coords_p1 = (torch.matmul(R1, protein_pair.atom_coords_p1.T).T - atom_center1)
-            protein_pair.xyz_p1 = (torch.matmul(R1, protein_pair.xyz_p1.T).T - atom_center1).contiguous()
-            protein_pair.normals_p1 = (torch.matmul(R1, protein_pair.normals_p1.T).T)
+            if 'xyz_p1' in protein_pair.keys:
+                protein_pair.xyz_p1 = (torch.matmul(R1, protein_pair.xyz_p1.T).T - atom_center1).contiguous()
+                protein_pair.normals_p1 = (torch.matmul(R1, protein_pair.normals_p1.T).T)
             if not self.args.single_protein:
                 R2 = tensor(Rotation.random().as_matrix())
                 protein_pair.rand_rot2 = R2
                 atom_center2 = protein_pair.atom_coords_p2.mean(dim=-2, keepdim=True)
                 protein_pair.atom_center2 = atom_center2
                 protein_pair.atom_coords_p2 = (torch.matmul(R2, protein_pair.atom_coords_p2.T).T - atom_center2)
-                protein_pair.xyz_p2 = (torch.matmul(R2, protein_pair.xyz_p2.T).T - atom_center2).contiguous()
-                protein_pair.normals_p2 = (torch.matmul(R2, protein_pair.normals_p2.T).T)
+                if 'xyz_p2' in protein_pair.keys:
+                    protein_pair.xyz_p2 = (torch.matmul(R2, protein_pair.xyz_p2.T).T - atom_center2).contiguous()
+                    protein_pair.normals_p2 = (torch.matmul(R2, protein_pair.normals_p2.T).T)
 
 
         P1, P2 = process(self.args, protein_pair, self.net)

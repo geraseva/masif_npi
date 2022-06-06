@@ -507,14 +507,13 @@ class ProteinPairsSurfaces(InMemoryDataset):
 class NpiDataset(InMemoryDataset):
 
 
-    def __init__(self, list_file, net, transform=None, binary=False):
+    def __init__(self, root, list_file, transform=None, pre_transform=None, pre_filter=None, binary=False):
         
         with open(list_file) as f_tr:
             self.list = f_tr.read().splitlines()
 
         self.name=list_file.split('/')[-1].split('.')[0]
        
-        self.net=net
         if binary:
             self.la={'-':1 }
             self.name=self.name+'_site'
@@ -524,13 +523,10 @@ class NpiDataset(InMemoryDataset):
 
         self.aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5 }
         
-        super(NpiDataset, self).__init__(None, transform, None)
+        super(NpiDataset, self).__init__(root, transform, pre_transform,pre_filter)
 
         self.data, self.slices = torch.load(self.processed_paths[0])
     
-    @property
-    def processed_dir(self) -> str:
-        return 'npys/'
 
     @property
     def processed_file_names(self):
@@ -544,38 +540,26 @@ class NpiDataset(InMemoryDataset):
     def process(self):
         
         print('Preprocess', self.name)
+
+        protein_dir = str(Path(self.root))+'/raw'
         processed_dataset=[]
         processed_idx=[]
         for idx in tqdm(self.list):
-            protein_pair = load_protein_pair(idx, 'npys', True, aa=self.aa, la=self.la)
+            protein_pair = load_protein_pair(idx, protein_dir, True, aa=self.aa, la=self.la)
+            processed_dataset.append(protein_pair)
+            processed_idx.append(idx)
 
-            P1= {}
-            P1["atoms"] = protein_pair.atom_coords_p1
-            P1["batch_atoms"]=torch.zeros(P1["atoms"].shape[:-1], dtype=torch.int)
-            P1["atom_xyz"] = protein_pair.atom_coords_p1
-            P1["atomtypes"] = protein_pair.atom_types_p1
+        if self.pre_transform is not None:
+            print('Precomputing surfaces', file=sys.stderr)
+            processed_dataset = [
+                self.pre_transform(data) for data in tqdm(processed_dataset)
+            ]
 
-            self.net.preprocess_surface(P1)
+        if self.pre_filter is not None:
+            processed_dataset = [
+                data for data in processed_dataset if self.pre_filter(data)
+            ]
 
-            P2 = {}
-            P2["atoms"] = protein_pair.atom_coords_p2
-            P2["batch_atoms"]=torch.zeros(P2["atoms"].shape[:-1], dtype=torch.int)
-            P2["atom_xyz"] = protein_pair.atom_coords_p2
-            P2["atomtypes"] = protein_pair.atom_types_p2
-            P2["atomres"] = protein_pair.atom_res_p2
-            
-            project_npi_labels(P1, P2, threshold=5.0)
-    
-            protein_pair.gen_xyz_p1 = P1["xyz"]
-            protein_pair.gen_normals_p1 = P1["normals"]
-            protein_pair.gen_labels_p1 = P1["labels"]
-            protein_pair.gen_batch_p1 = P1["batch"]
-
-            
-
-            if iface_valid_filter(protein_pair):
-                processed_dataset.append(protein_pair)
-                processed_idx.append(idx)
         processed_dataset, slices=self.collate(processed_dataset)
 
         torch.save(
