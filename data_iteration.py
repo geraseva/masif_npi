@@ -605,7 +605,6 @@ def iterate(
         else:
             newdict[k].append(v)
 
-    newdict['ROC_curve']=np.array(newdict['ROC_curve'],dtype=object)
     info = newdict
 
     gc.collect()
