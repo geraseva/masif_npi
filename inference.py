@@ -2,15 +2,16 @@
 import numpy as np
 import torch
 import json
+import os
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import random_split
-from torch_geometric.data import DataLoader
+from torch_geometric.loader import DataLoader
 from torch_geometric.transforms import Compose
 from pathlib import Path
 
 # Custom data loader and model:
 from data import PairData, CenterPairAtoms, load_protein_pair
-from data import RandomRotationPairAtoms, NormalizeChemFeatures, iface_valid_filter
+from data import RandomRotationPairAtoms, NormalizeChemFeatures
 from model import dMaSIF
 from data_iteration import iterate
 from helper import *
@@ -45,14 +46,19 @@ else:
 
 aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5}
 
+
+if args.dataset=='NpiDataset':
+    single_data_dir = "./npi_dataset/raw"
+elif args.dataset=='ProteinPairssSurfaces':
+    single_data_dir = "./surface_data/raw/01-benchmark_surfaces_npy"
+
+
 if single_pdb != "":
-    single_data_dir = "./data_preprocessing/npys/"
     test_dataset = [load_protein_pair(single_pdb, single_data_dir,single_pdb=True,la=la, aa=aa)]
     test_pdb_ids = [single_pdb]
 elif pdb_list != "":
     with open(pdb_list) as f:
         pdb_l = f.read().splitlines()
-    single_data_dir = "./masif_npi/npys/"
     test_dataset = [load_protein_pair(pdb, single_data_dir,single_pdb=True,la=la, aa=aa) for pdb in pdb_l]
     test_pdb_ids = [pdb for pdb in pdb_l]
 else:
@@ -62,7 +68,7 @@ else:
 # PyTorch geometric expects an explicit list of "batched variables":
 batch_vars = ["xyz_p1", "xyz_p2", "atom_coords_p1", "atom_coords_p2"]
 test_loader = DataLoader(
-    test_dataset, batch_size=1, follow_batch=batch_vars
+    test_dataset, batch_size=1, follow_batch=batch_vars, shuffle=False
 )
 
 net = dMaSIF(args)
@@ -72,6 +78,9 @@ net.load_state_dict(
 net = net.to(args.device)
 
 # Perform one pass through the data:
+if not os.path.isdir(save_predictions_path):
+    os.makedirs(save_predictions_path)
+
 info = iterate(
     net,
     test_loader,
@@ -82,9 +91,15 @@ info = iterate(
     pdb_ids=test_pdb_ids,
     roccurve=True
 )
-np.save(f"preds/{args.experiment_name}_roc.npy", info["ROC_curve"])
-print(zip(test_pdb_ids,info["ROC-AUC"]))
-print(np.mean(info["ROC-AUC"]),np.std(info["ROC-AUC"]))
 
-#np.save(f"timings/{args.experiment_name}_convtime.npy", info["conv_time"])
-#np.save(f"timings/{args.experiment_name}_memoryusage.npy", info["memory_usage"])
+info['indexes']=test_pdb_ids
+
+np.save(f"preds/{args.experiment_name}_roc.npy", info['ROC_curve'])
+
+print('Mean roc-auc:',np.mean(info["ROC-AUC"]),'std roc-auc:',np.std(info["ROC-AUC"]))
+
+for i, pdb in enumerate(info['indexes']):
+    print(f"{pdb}: roc-auc {info['ROC-AUC'][i]} Loss {info['Loss'][i]}")
+
+
+

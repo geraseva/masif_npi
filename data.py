@@ -11,7 +11,6 @@ from pathlib import Path
 import requests
 from data_preprocessing.convert_pdb2npy import convert_pdbs
 from data_preprocessing.convert_ply2npy import convert_plys
-from data_iteration import project_npi_labels
 from tqdm import tqdm
 import sys
 

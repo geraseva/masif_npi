@@ -1,4 +1,5 @@
 npys/
+npi_dataset/
 runs/
 models/
 log.txt
