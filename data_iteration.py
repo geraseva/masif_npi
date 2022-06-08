@@ -260,7 +260,7 @@ def project_iface_labels(P, threshold=2.0):
 
     query_labels = labels[nn_i] * nn_dist_i
 
-    P["labels"] = query_labels
+    P["labels"] = query_labels.detach()
 
 def project_npi_labels(P1, P2, threshold=5.0):
 
@@ -299,11 +299,11 @@ def process(args, protein_pair, net):
             P1['normals']=torch.matmul(R1.T, P1['normals'].T).T.contiguous()
         else:
             net.preprocess_surface(P1)
-    if P1["mesh_labels"] is not None:
-        project_iface_labels(P1)
-    elif not "gen_labels_p1" in protein_pair.keys:
-        P2 = process_single(protein_pair, chain_idx=2)
-        project_npi_labels(P1, P2, threshold=5.0)
+        if P1["mesh_labels"] is not None:
+            project_iface_labels(P1)
+        else:
+            P2 = process_single(protein_pair, chain_idx=2)
+            project_npi_labels(P1, P2, threshold=5.0)
     P2 = None
     if not args.single_protein:
         P2 = process_single(protein_pair, chain_idx=2)
@@ -318,10 +318,10 @@ def process(args, protein_pair, net):
                 P2['normals']=torch.matmul(R2.T, P2['normals'].T).T.contiguous()
             else:
                 net.preprocess_surface(P2)         
-        if P2["mesh_labels"] is not None:
-            project_iface_labels(P2)
-        elif not "gen_labels_p2" in protein_pair.keys:
-            project_npi_labels(P2, P1, threshold=5.0)
+            if P2["mesh_labels"] is not None:
+                project_iface_labels(P2)
+            else:
+                project_npi_labels(P2, P1, threshold=5.0)
 
     return P1, P2
 
