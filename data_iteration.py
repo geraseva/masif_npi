@@ -404,7 +404,7 @@ def compute_loss(args, P1, P2, n_points_sample=16):
     elif args.loss=='BCELoss':
         loss = F.binary_cross_entropy_with_logits(preds_concat.squeeze(), labels_concat.float())
     elif args.loss=='FocalLoss':
-        loss = focal_loss(preds_concat, labels_concat, alpha=0.25, reduction='mean')
+        loss = focal_loss(preds_concat, labels_concat, alpha=0.25, gamma=args.focal_loss_gamma, reduction='mean')
 
 
     return loss, preds_concat, labels_concat

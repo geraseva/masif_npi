@@ -137,6 +137,13 @@ parser.add_argument(
     help="Which loss function to use",
 )
 
+parser.add_argument(
+    "--focal_loss_gamma",
+    type=float,
+    default=2,
+    help="Gamma parameter for focal loss",
+)
+
 # Training
 parser.add_argument(
     "--n_epochs", type=int, default=50, help="Number of training epochs"
