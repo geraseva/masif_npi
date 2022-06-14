@@ -527,7 +527,7 @@ class dMaSIF(nn.Module):
         # First baseline:
         elif self.args.embedding_layer == "DGCNN":
             features = torch.cat([features, P["xyz"]], dim=-1).contiguous()
-            P["embedding_1"] = self.conv(P["xyz"], features, P["batch"].to(torch.int64)
+            P["embedding_1"] = self.conv(P["xyz"], features, P["batch"].to(torch.int64))
             if self.args.search:
                 P["embedding_2"] = self.conv2(
                     P["xyz"], features, P["batch"]
