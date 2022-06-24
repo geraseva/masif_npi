@@ -1,6 +1,6 @@
-make sure that you get all the dependencies from the file requirements.txt
+Make sure that you get all the dependencies from the file requirements.txt
 
-use these commands to download and unpack the dataset:
+Use these commands to download and unpack the dataset:
 
     cd masif_npi
     wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt  \
@@ -11,7 +11,9 @@ use these commands to download and unpack the dataset:
     mkdir npi_dataset/raw
     tar -xzvf npi_dataset.tar.gz -C npi_dataset/raw/
 
-use this command to run the benchmark:
+Use this command to run the benchmark:
 
     ./benchmark.sh >> log.txt
+    
+Take into account, that one epoch of training takes about 45 minutes. And there are 350 epochs in the benchmark file in total.
 
