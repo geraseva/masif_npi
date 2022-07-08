@@ -389,7 +389,10 @@ def compute_loss(args, P1, P2, n_points_sample=16):
 
     n_points_sample = len(pos_labels)
     pos_indices = torch.randperm(len(pos_labels))[:n_points_sample]
-    neg_indices = torch.randperm(len(neg_labels))[:n_points_sample]
+    if args.npi:
+        neg_indices = torch.randperm(len(neg_labels))[:n_points_sample//4]
+    else:
+        neg_indices = torch.randperm(len(neg_labels))[:n_points_sample]
 
     pos_preds = pos_preds[pos_indices]
     pos_labels = pos_labels[pos_indices]
