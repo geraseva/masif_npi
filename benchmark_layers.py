@@ -1,3 +1,5 @@
+# from https://github.com/FreyrS/dMaSIF
+
 import torch
 from typing import Optional
 from pykeops.torch import LazyTensor
