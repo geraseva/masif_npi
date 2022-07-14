@@ -127,6 +127,77 @@ class AtomNet_V(nn.Module):
         fx = self.embedding(fx)
         return fx
 
+class AtomNet_V_MP(nn.Module):
+    def __init__(self, args):
+        super(AtomNet_V_MP, self).__init__()
+        self.args = args
+        self.k = 16
+        self.transform_types = nn.Sequential(
+            nn.Linear(args.atom_dims, args.chem_dims),
+            nn.LeakyReLU(negative_slope=0.2),
+            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.LeakyReLU(negative_slope=0.2),
+            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.LeakyReLU(negative_slope=0.2),
+        )
+        self.transform_types_mp = nn.Sequential(
+            nn.Linear(args.atom_dims, args.chem_dims),
+            nn.LeakyReLU(negative_slope=0.2),
+            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.LeakyReLU(negative_slope=0.2),
+            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.LeakyReLU(negative_slope=0.2),
+        )
+
+        self.dropout=nn.Dropout2d(args.dropout)
+        self.dropout_mp=nn.Dropout2d(args.dropout)
+
+        self.att=nn.Sequential(
+            nn.Linear(self.k, 1, bias=False), 
+            nn.ReLU())
+        
+        self.embedding = nn.Sequential(
+            nn.Linear(args.chem_dims,args.chem_dims),
+            nn.LeakyReLU(negative_slope=0.2),
+            #nn.BatchNorm1d(args.chem_dims),
+            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.LeakyReLU(negative_slope=0.2),
+            #nn.BatchNorm1d(args.chem_dims),
+            nn.Linear(args.chem_dims, args.chem_dims),
+        )
+        self.att_mp=nn.Sequential(
+            nn.Linear(self.k, 1, bias=False), 
+            nn.ReLU())
+        
+        self.embedding_mp = nn.Sequential(
+            nn.Linear(args.chem_dims,args.chem_dims),
+            nn.LeakyReLU(negative_slope=0.2),
+            #nn.BatchNorm1d(args.chem_dims),
+            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.LeakyReLU(negative_slope=0.2),
+            #nn.BatchNorm1d(args.chem_dims),
+            nn.Linear(args.chem_dims, args.chem_dims),
+        )
+
+    def forward(self, xyz, atom_xyz, atomtypes, batch, atom_batch):
+
+        atomtypes=atomtypes[:,:self.args.atom_dims]
+
+        fx = self.transform_types_mp(atomtypes)
+        fx = get_features_v(atom_xyz, atom_xyz, atom_batch, atom_batch, fx, k=self.k+1)
+        fx=fx[:,:,:,1:] # Remove self
+        fx = self.att_mp(self.dropout_mp(fx)).squeeze(-1)
+        fx= torch.sqrt(torch.square(fx).sum(dim=-1, keepdim=False))
+
+        atomtypes = self.transform_types(atomtypes)+self.embedding_mp(fx)
+
+        fx = get_features_v(xyz, atom_xyz, batch, atom_batch, atomtypes, k=self.k)
+        fx = self.att(self.dropout(fx)).squeeze(-1)
+        fx= torch.sqrt(torch.square(fx).sum(dim=-1, keepdim=False))
+        fx = self.embedding(fx)
+
+        return fx
+
 
 class Atom_embedding(nn.Module):
     def __init__(self, args):
@@ -393,6 +464,8 @@ class dMaSIF(nn.Module):
             self.atomnet = AtomNet_MP(args)
         elif args.feature_generation=='AtomNet_V':
             self.atomnet = AtomNet_V(args)
+        elif args.feature_generation=='AtomNet_V_MP':
+            self.atomnet = AtomNet_V_MP(args)
 
         self.dropout = nn.Dropout(args.dropout)
 

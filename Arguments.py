@@ -20,7 +20,7 @@ parser.add_argument(
     "--feature_generation",
     type=str,
     default="AtomNet",
-    choices=["AtomNet", "AtomNet_MP", "AtomNet_V"],
+    choices=["AtomNet", "AtomNet_MP", "AtomNet_V", "AtomNet_V_MP"],
     help="Which model to use for feature generation",
 )
 
