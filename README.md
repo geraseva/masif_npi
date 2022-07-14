@@ -1,3 +1,5 @@
+Implementation of dMaSIF (https://github.com/FreyrS/dMaSIF) to predict DNA-protein interactions
+
 Make sure that you get all the dependencies from the file requirements.txt
 
 Use these commands to download and unpack the dataset:
