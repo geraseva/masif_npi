@@ -69,7 +69,7 @@ def get_features_v(x, y, x_batch, y_batch, y_atomtype, k=16, gamma=1):
     
     dists = (vecs ** 2).sum(-1)
 
-    dists = torch.pow(dists,0.5-(1+gamma)) # (N, K)
+    dists = torch.pow(dists,-(1+gamma)/2) # (N, K)
     
     _, num_dims = y_atomtype.size()
 
