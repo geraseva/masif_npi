@@ -69,7 +69,7 @@ def get_features_v(x, y, x_batch, y_batch, y_atomtype, k=16, gamma=1):
     
     dists = (vecs ** 2).sum(-1)
 
-    dists = torch.pow(dists,-(1+gamma)/2) # (N, K)
+    dists = torch.pow(dists,0.5-(1+gamma)) # (N, K)
     
     _, num_dims = y_atomtype.size()
 
@@ -138,38 +138,14 @@ class AtomNet_V_MP(nn.Module):
             nn.Linear(args.chem_dims, args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
             nn.Linear(args.chem_dims, args.chem_dims),
-            nn.LeakyReLU(negative_slope=0.2),
+            nn.ReLU()
         )
-        self.transform_types_mp = nn.Sequential(
-            nn.Linear(args.atom_dims, args.chem_dims),
-            nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.chem_dims, args.chem_dims),
-            nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.chem_dims, args.chem_dims),
-            nn.LeakyReLU(negative_slope=0.2),
-        )
+        self.bil=nn.Bilinear(args.chem_dims,args.chem_dims,args.chem_dims)
 
-        self.dropout=nn.Dropout2d(args.dropout)
-        self.dropout_mp=nn.Dropout2d(args.dropout)
-
-        self.att=nn.Sequential(
-            nn.Linear(self.k, 1, bias=False), 
-            nn.ReLU())
+        self.dropout=nn.Dropout(args.dropout)
+        self.dropout_mp=nn.Dropout(args.dropout)
         
         self.embedding = nn.Sequential(
-            nn.Linear(args.chem_dims,args.chem_dims),
-            nn.LeakyReLU(negative_slope=0.2),
-            #nn.BatchNorm1d(args.chem_dims),
-            nn.Linear(args.chem_dims, args.chem_dims),
-            nn.LeakyReLU(negative_slope=0.2),
-            #nn.BatchNorm1d(args.chem_dims),
-            nn.Linear(args.chem_dims, args.chem_dims),
-        )
-        self.att_mp=nn.Sequential(
-            nn.Linear(self.k, 1, bias=False), 
-            nn.ReLU())
-        
-        self.embedding_mp = nn.Sequential(
             nn.Linear(args.chem_dims,args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
             #nn.BatchNorm1d(args.chem_dims),
@@ -183,16 +159,18 @@ class AtomNet_V_MP(nn.Module):
 
         atomtypes=atomtypes[:,:self.args.atom_dims]
 
-        fx = self.transform_types_mp(atomtypes)
-        fx = get_features_v(atom_xyz, atom_xyz, atom_batch, atom_batch, fx, k=self.k+1)
-        fx=fx[:,:,:,1:] # Remove self
-        fx = self.att_mp(self.dropout_mp(fx)).squeeze(-1)
-        fx= torch.sqrt(torch.square(fx).sum(dim=-1, keepdim=False))
+        atomtypes = self.transform_types(atomtypes)
+        print(atomtypes)
 
-        atomtypes = self.transform_types(atomtypes)+self.embedding_mp(fx)
+        fx = get_features_v(atom_xyz, atom_xyz, atom_batch, atom_batch, atomtypes, k=self.k+1)
+        fx=fx[:,:,:,1:] # Remove self
+        fx = self.dropout_mp(fx).sum(dim=-1, keepdim=False)
+        fx= torch.sqrt(torch.square(fx).sum(dim=-1, keepdim=False))
+        
+        atomtypes=atomtypes-self.bil(atomtypes,fx)
 
         fx = get_features_v(xyz, atom_xyz, batch, atom_batch, atomtypes, k=self.k)
-        fx = self.att(self.dropout(fx)).squeeze(-1)
+        fx = self.dropout(fx).sum(dim=-1, keepdim=False)
         fx= torch.sqrt(torch.square(fx).sum(dim=-1, keepdim=False))
         fx = self.embedding(fx)
 
