@@ -15,6 +15,7 @@ from geometry_processing import (
 from helper import soft_dimension, diagonal_ranges
 from benchmark_models import DGCNN_seg, PointNet2_seg, dMaSIFConv_seg
 
+torch.autograd.set_detect_anomaly(True)
 
 def knn_atoms(x, y, x_batch, y_batch, k):
     N, D = x.shape
@@ -69,7 +70,7 @@ def get_features_v(x, y, x_batch, y_batch, y_atomtype, k=16, gamma=1):
     
     dists = (vecs ** 2).sum(-1)
 
-    dists = torch.pow(dists,-(1+gamma)/2) # (N, K)
+    dists = torch.pow(dists+1e-8,-(1+gamma)/2) # (N, K)
     
     _, num_dims = y_atomtype.size()
 
@@ -137,21 +138,33 @@ class AtomNet_V_MP(nn.Module):
             nn.LeakyReLU(negative_slope=0.2),
             nn.Linear(args.chem_dims, args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.chem_dims, args.chem_dims),
-            nn.ReLU()
+            nn.Linear(args.chem_dims, args.chem_dims)
         )
-        self.bil=nn.Bilinear(args.chem_dims,args.chem_dims,args.chem_dims)
+
+        self.transform_types_mp = nn.Sequential(
+            nn.Linear(args.atom_dims, args.chem_dims),
+            nn.LeakyReLU(negative_slope=0.2),
+            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.LeakyReLU(negative_slope=0.2),
+            nn.Linear(args.chem_dims, args.chem_dims)
+        )
+        self.bil=nn.Bilinear(args.chem_dims,args.chem_dims,args.chem_dims, bias=False)
 
         self.dropout=nn.Dropout(args.dropout)
         self.dropout_mp=nn.Dropout(args.dropout)
         
+        self.embedding_mp = nn.Sequential(
+            nn.Linear(args.chem_dims,args.chem_dims),
+            nn.LeakyReLU(negative_slope=0.2),
+            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.LeakyReLU(negative_slope=0.2),
+            nn.Linear(args.chem_dims, args.chem_dims),
+        )
         self.embedding = nn.Sequential(
             nn.Linear(args.chem_dims,args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
-            #nn.BatchNorm1d(args.chem_dims),
             nn.Linear(args.chem_dims, args.chem_dims),
             nn.LeakyReLU(negative_slope=0.2),
-            #nn.BatchNorm1d(args.chem_dims),
             nn.Linear(args.chem_dims, args.chem_dims),
         )
 
@@ -159,14 +172,15 @@ class AtomNet_V_MP(nn.Module):
 
         atomtypes=atomtypes[:,:self.args.atom_dims]
 
-        atomtypes = self.transform_types(atomtypes)
-        print(atomtypes)
-
-        fx = get_features_v(atom_xyz, atom_xyz, atom_batch, atom_batch, atomtypes, k=self.k+1)
+        fx = self.transform_types_mp(atomtypes)
+        fx = get_features_v(atom_xyz, atom_xyz, atom_batch, atom_batch, fx, k=self.k+1)
         fx=fx[:,:,:,1:] # Remove self
         fx = self.dropout_mp(fx).sum(dim=-1, keepdim=False)
         fx= torch.sqrt(torch.square(fx).sum(dim=-1, keepdim=False))
-        
+        fx = self.embedding_mp(fx)
+       
+        atomtypes=self.transform_types(atomtypes)
+
         atomtypes=atomtypes-self.bil(atomtypes,fx)
 
         fx = get_features_v(xyz, atom_xyz, batch, atom_batch, atomtypes, k=self.k)
