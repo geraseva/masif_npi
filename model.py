@@ -15,7 +15,7 @@ from geometry_processing import (
 from helper import soft_dimension, diagonal_ranges
 from benchmark_models import DGCNN_seg, PointNet2_seg, dMaSIFConv_seg
 
-torch.autograd.set_detect_anomaly(True)
+torch.autograd.set_detect_anomaly(False)
 
 def knn_atoms(x, y, x_batch, y_batch, k):
     N, D = x.shape
