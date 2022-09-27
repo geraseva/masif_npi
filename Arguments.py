@@ -31,6 +31,13 @@ parser.add_argument(
     choices=["NpiDataset", "ProteinPairsSurfaces"],
     help="Which dataset to use",
 ) 
+parser.add_argument(
+    "--na",
+    type=str,
+    default="DNA",
+    choices=["DNA", "RNA"],
+    help="Which nucleic acid to use",
+)
 parser.add_argument("--profile", type=bool, default=False, help="Profile code")
 
 # Geometric parameters

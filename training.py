@@ -2,7 +2,6 @@
 # Standard imports:
 import numpy as np
 import torch
-from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import random_split
 from torch_geometric.loader import DataLoader
 from torch_geometric.transforms import Compose
@@ -24,7 +23,6 @@ args = parser.parse_args()
 
 print('Start training')
 print('Arguments:',args)
-writer = SummaryWriter("runs/{}".format(args.experiment_name))
 model_path = "models/" + args.experiment_name
 torch.cuda.set_device(args.device)
 
@@ -61,14 +59,24 @@ else:
     binary=False
 # Load the train dataset:
 if args.dataset=='NpiDataset':
-    full_dataset = NpiDataset('npi_dataset', "lists/training_npi.list", 
-        transform=transformations, pre_transform=SurfacePrecompute(net, args), 
-        pre_filter=iface_valid_filter, binary=binary
-    )
-    test_dataset = NpiDataset('npi_dataset', "lists/testing_npi.list", 
-        transform=transformations, pre_transform=SurfacePrecompute(net, args), 
-        pre_filter=iface_valid_filter, binary=binary
-    )
+    if args.na=='DNA':
+        full_dataset = NpiDataset('npi_dataset', "lists/training_npi.list", 
+            transform=transformations, pre_transform=SurfacePrecompute(net, args), 
+            pre_filter=iface_valid_filter, binary=binary
+        )
+        test_dataset = NpiDataset('npi_dataset', "lists/testing_npi.list", 
+            transform=transformations, pre_transform=SurfacePrecompute(net, args), 
+            pre_filter=iface_valid_filter, binary=binary
+        )
+    elif args.na=='RNA':
+        full_dataset = NpiDataset('rnaprot_dataset', "lists/training_rna.txt", 
+            transform=transformations, pre_transform=SurfacePrecompute(net, args), 
+            pre_filter=iface_valid_filter, binary=binary
+        )
+        test_dataset = NpiDataset('rnaprot_dataset', "lists/testing_rna.txt", 
+            transform=transformations, pre_transform=SurfacePrecompute(net, args), 
+            pre_filter=iface_valid_filter, binary=binary
+        )
 elif args.dataset=='ProteinPairsSurfaces':
     full_dataset = ProteinPairsSurfaces(
         "surface_data", ppi=args.search, train=True, transform=transformations, 
@@ -154,7 +162,7 @@ for i in range(starting_epoch, args.n_epochs):
             optimizer,
             args,
             test=test,
-            summary_writer=writer,
+            summary_writer=None,
             epoch_number=i,
         )
 
@@ -169,11 +177,8 @@ for i in range(starting_epoch, args.n_epochs):
                 "Distance/Negatives",
                 "Matching ROC-AUC",
             ]:
-                writer.add_scalar(f"{key}/{suffix}", np.mean(val), i)
                 print(key ,suffix , i, np.mean(val))
-            if "R_values/" in key:
-                val = np.array(val)
-                writer.add_scalar(f"{key}/{suffix}", np.mean(val[val > 0]), i)
+
 
         if dataset_type == "Validation":  # Store validation loss for saving the model
             val_loss = np.mean(info["Loss"])
