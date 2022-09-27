@@ -2,7 +2,7 @@ Implementation of dMaSIF (https://github.com/FreyrS/dMaSIF) to predict DNA-prote
 
 Make sure that you get all the dependencies from the file requirements.txt
 
-Use these commands to download and unpack the dataset:
+Use these commands to download and unpack the dataset of DNA-protein interactions:
 
     cd masif_npi
     wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt  \
@@ -10,8 +10,18 @@ Use these commands to download and unpack the dataset:
     sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1SCZZ9GHHpgfJwmXDLYZrfRYXY2eojVKK" -O npi_dataset.tar.gz && rm -rf /tmp/cookies.txt
 
     mkdir npi_dataset
-    mkdir npi_dataset/raw
+    mkdir npi_dataset/raw    
     tar -xzvf npi_dataset.tar.gz -C npi_dataset/raw/
+
+Use these commands to download and unpack the dataset of RNA-protein interactions:
+    
+    wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt  \
+    --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=15V95BTHJ1GLse3F5gxvgUUx4WjHPaUHF' -O- | \
+    sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=15V95BTHJ1GLse3F5gxvgUUx4WjHPaUHF" -O rnaprot_dataset.tar.gz && rm -rf /tmp/cookies.txt 
+
+    mkdir rnaprot_dataset
+    mkdir rnaprot_dataset/raw
+    tar -xzvf rnaprot_dataset.tar.gz -C rnaprot_dataset/raw/
 
 Use this command to run the benchmark:
 
