@@ -133,48 +133,6 @@ class CenterPairAtoms(object):
         return "{}()".format(self.__class__.__name__)
 
 
-class NormalizeChemFeatures(object):
-    r"""Centers a protein"""
-
-    def __call__(self, data):
-        pb_upper = 3.0
-        pb_lower = -3.0
-
-        try:
-            chem_p1 = data.chemical_features_p1
-            chem_p2 = data.chemical_features_p2
-        except AttributeError:
-            return data
-
-        pb_p1 = chem_p1[:, 0]
-        pb_p2 = chem_p2[:, 0]
-        hb_p1 = chem_p1[:, 1]
-        hb_p2 = chem_p2[:, 1]
-        hp_p1 = chem_p1[:, 2]
-        hp_p2 = chem_p2[:, 2]
-
-        # Normalize PB
-        pb_p1 = torch.clamp(pb_p1, pb_lower, pb_upper)
-        pb_p1 = (pb_p1 - pb_lower) / (pb_upper - pb_lower)
-        pb_p1 = 2 * pb_p1 - 1
-
-        pb_p2 = torch.clamp(pb_p2, pb_lower, pb_upper)
-        pb_p2 = (pb_p2 - pb_lower) / (pb_upper - pb_lower)
-        pb_p2 = 2 * pb_p2 - 1
-
-        # Normalize HP
-        hp_p1 = hp_p1 / 4.5
-        hp_p2 = hp_p2 / 4.5
-
-        data.chemical_features_p1 = torch.stack([pb_p1, hb_p1, hp_p1]).T
-        data.chemical_features_p2 = torch.stack([pb_p2, hb_p2, hp_p2]).T
-
-        return data
-
-    def __repr__(self):
-        return "{}()".format(self.__class__.__name__)
-
-
 def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, atom_encoder=None,label_encoder=None):
     """Loads a protein surface mesh and its features"""
 
@@ -517,7 +475,7 @@ class NpiDataset(InMemoryDataset):
             self.la={'-':1 }
             self.name='site/'+self.name
         else:
-            self.la={'DA':1, "DG": 2, "DC":3, "DT":4, '-':0 }
+            self.la={'DA':1, "DG": 2, "DC":3, "DT":4, 'A':1, "G": 2, "C":3, "T":4, '-':0 }
             self.name='npi/'+self.name
 
         self.aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5 }

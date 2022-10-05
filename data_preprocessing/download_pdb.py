@@ -7,9 +7,11 @@ import os
 import numpy as np
 from subprocess import Popen, PIPE
 from pathlib import Path
-from convert_pdb2npy import load_structure_np
 import argparse
 from tqdm import tqdm
+
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+from convert_pdb2npy import load_structure_np
 
 
 parser = argparse.ArgumentParser(description="Arguments")
@@ -25,7 +27,7 @@ parser.add_argument(
 
 tmp_dir = Path('/home/domain/tmp')
 pdb_dir = Path('/home/domain/data/geraseva/masif/data/masif_npi/data_preparation/00-raw_pdbs')
-npy_dir = Path('./npys')
+npy_dir = Path('./rnaprot_dataset/raw')
 
 PROTEIN_LETTERS = [x.upper() for x in IUPACData.protein_letters_3to1.keys()]
 
