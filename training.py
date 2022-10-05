@@ -10,7 +10,7 @@ import json
 
 # Custom data loader and model:
 from data import NpiDataset, PairData, CenterPairAtoms, ProteinPairsSurfaces
-from data import RandomRotationPairAtoms, NormalizeChemFeatures
+from data import RandomRotationPairAtoms
 from model import dMaSIF
 from data_iteration import iterate, iface_valid_filter, SurfacePrecompute
 from helper import *
@@ -46,9 +46,9 @@ net = net.to(args.device)
 # We load the train and test datasets.
 # Random transforms, to ensure that no network/baseline overfits on pose parameters:
 transformations = (
-    Compose([NormalizeChemFeatures(), CenterPairAtoms(), RandomRotationPairAtoms()])
+    Compose([CenterPairAtoms(), RandomRotationPairAtoms()])
     if args.random_rotation
-    else Compose([NormalizeChemFeatures()])
+    else None
 )
 
 # PyTorch geometric expects an explicit list of "batched variables":

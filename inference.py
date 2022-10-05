@@ -11,7 +11,7 @@ from pathlib import Path
 
 # Custom data loader and model:
 from data import PairData, CenterPairAtoms, load_protein_pair
-from data import RandomRotationPairAtoms, NormalizeChemFeatures
+from data import RandomRotationPairAtoms
 from model import dMaSIF
 from data_iteration import iterate
 from helper import *
@@ -35,9 +35,9 @@ np.random.seed(args.seed)
 
 # Load the train and test datasets:
 transformations = (
-    Compose([NormalizeChemFeatures(), CenterPairAtoms(), RandomRotationPairAtoms()])
+    Compose([ CenterPairAtoms(), RandomRotationPairAtoms()])
     if args.random_rotation
-    else Compose([NormalizeChemFeatures()])
+    else None
 )
 if args.site:
     la={'-':1 }
