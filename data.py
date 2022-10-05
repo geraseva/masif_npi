@@ -475,7 +475,7 @@ class NpiDataset(InMemoryDataset):
             self.la={'-':1 }
             self.name='site/'+self.name
         else:
-            self.la={'DA':1, "DG": 2, "DC":3, "DT":4, 'A':1, "G": 2, "C":3, "T":4, '-':0 }
+            self.la={'DA':1, "DG": 2, "DC":3, "DT":4, 'A':1, "G": 2, "C":3, "U":4, '-':0 }
             self.name='npi/'+self.name
 
         self.aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5 }
