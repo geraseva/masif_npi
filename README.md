@@ -16,8 +16,8 @@ Use these commands to download and unpack the dataset of DNA-protein interaction
 Use these commands to download and unpack the dataset of RNA-protein interactions:
     
     wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt  \
-    --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=15V95BTHJ1GLse3F5gxvgUUx4WjHPaUHF' -O- | \
-    sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=15V95BTHJ1GLse3F5gxvgUUx4WjHPaUHF" -O rnaprot_dataset.tar.gz && rm -rf /tmp/cookies.txt 
+    --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=1cIr-qe4R6cWGOK5sAE2-K2U_DgJrDlM5' -O- | \
+    sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1cIr-qe4R6cWGOK5sAE2-K2U_DgJrDlM5" -O rnaprot_dataset.tar.gz && rm -rf /tmp/cookies.txt 
 
     mkdir rnaprot_dataset
     mkdir rnaprot_dataset/raw
