@@ -103,8 +103,7 @@ class AtomNet_V(nn.Module):
         self.dropout=nn.Dropout2d(args.dropout)
 
         self.att=nn.Sequential(
-            nn.Linear(self.k, 1, bias=False), 
-            nn.ReLU())
+            nn.Linear(self.k, 1, bias=False))
         
         self.embedding = nn.Sequential(
             nn.Linear(args.chem_dims,args.chem_dims),
