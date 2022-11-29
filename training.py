@@ -69,11 +69,11 @@ if args.dataset=='NpiDataset':
             pre_filter=iface_valid_filter, binary=binary
         )
     elif args.na=='RNA':
-        full_dataset = NpiDataset('rnaprot_dataset', "lists/training_rna.txt", 
+        full_dataset = NpiDataset('npi_dataset', "lists/training_rna.txt", 
             transform=transformations, pre_transform=SurfacePrecompute(net, args), 
             pre_filter=iface_valid_filter, binary=binary
         )
-        test_dataset = NpiDataset('rnaprot_dataset', "lists/testing_rna.txt", 
+        test_dataset = NpiDataset('npi_dataset', "lists/testing_rna.txt", 
             transform=transformations, pre_transform=SurfacePrecompute(net, args), 
             pre_filter=iface_valid_filter, binary=binary
         )
