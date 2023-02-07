@@ -54,29 +54,33 @@ transformations = (
 # PyTorch geometric expects an explicit list of "batched variables":
 batch_vars = ["xyz_p1", "xyz_p2", "atom_coords_p1", "atom_coords_p2"]
 if args.site:
-    binary=True
+    self.la={'-':1 }
+    prefix='site_'
 else:
-    binary=False
+    prefix='npi_'
+if args.na=='DNA':
+    train_dataset="lists/training_dna.txt"
+    test_dataset="lists/testing_dna.txt"
+    la={'DA':1, "DG": 2, "DC":3, "DT":4, '-':0 }
+elif args.na=='RNA':
+    train_dataset="lists/training_rna.txt"
+    test_dataset="lists/testing_rna.txt"
+    la={'A':1, "G": 2, "C":3, "U":4, '-':0 }
+
+aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5 }
+
+
 # Load the train dataset:
 if args.dataset=='NpiDataset':
-    if args.na=='DNA':
-        full_dataset = NpiDataset('npi_dataset', "lists/training_npi.list", 
+    full_dataset = NpiDataset('npi_dataset', train_dataset, 
             transform=transformations, pre_transform=SurfacePrecompute(net, args), 
-            pre_filter=iface_valid_filter, binary=binary
+            la=la, aa=aa, prefix=prefix, pre_filter=iface_valid_filter
         )
-        test_dataset = NpiDataset('npi_dataset', "lists/testing_npi.list", 
+    test_dataset = NpiDataset('npi_dataset', test_dataset, 
             transform=transformations, pre_transform=SurfacePrecompute(net, args), 
-            pre_filter=iface_valid_filter, binary=binary
+            la=la, aa=aa, prefix=prefix, pre_filter=iface_valid_filter
         )
-    elif args.na=='RNA':
-        full_dataset = NpiDataset('npi_dataset', "lists/training_rna.txt", 
-            transform=transformations, pre_transform=SurfacePrecompute(net, args), 
-            pre_filter=iface_valid_filter, binary=binary
-        )
-        test_dataset = NpiDataset('npi_dataset', "lists/testing_rna.txt", 
-            transform=transformations, pre_transform=SurfacePrecompute(net, args), 
-            pre_filter=iface_valid_filter, binary=binary
-        )
+
 elif args.dataset=='ProteinPairsSurfaces':
     full_dataset = ProteinPairsSurfaces(
         "surface_data", ppi=args.search, train=True, transform=transformations, 
@@ -97,8 +101,7 @@ train_dataset, val_dataset = random_split(
  
 # PyTorch_geometric data loaders:
 train_loader = DataLoader(
-    train_dataset, batch_size=1, follow_batch=batch_vars, shuffle=True
-)
+    train_dataset, batch_size=1, follow_batch=batch_vars, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=1, follow_batch=batch_vars)
 test_loader = DataLoader(test_dataset, batch_size=1, follow_batch=batch_vars)
 
@@ -162,7 +165,6 @@ for i in range(starting_epoch, args.n_epochs):
             optimizer,
             args,
             test=test,
-            summary_writer=None,
             epoch_number=i,
         )
 

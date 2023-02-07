@@ -22,9 +22,11 @@ model_path = "models/" + args.experiment_name
 save_predictions_path = Path("preds/" + args.experiment_name)
 single_pdb=args.single_pdb
 pdb_list=args.pdb_list
+device=args.device
 
 with open(model_path[:model_path.index('_epoch')]+'_args.json', 'r') as f:
     args.__dict__ = json.load(f)
+args.device=device
 
 # Ensure reproducability:
 torch.backends.cudnn.deterministic = True
@@ -89,7 +91,6 @@ info = iterate(
     test=True,
     save_path=save_predictions_path,
     pdb_ids=test_pdb_ids,
-    roccurve=True
 )
 
 info['indexes']=test_pdb_ids
@@ -100,6 +101,3 @@ print('Mean roc-auc:',np.mean(info["ROC-AUC"]),'std roc-auc:',np.std(info["ROC-A
 
 for i, pdb in enumerate(info['indexes']):
     print(f"{pdb}: roc-auc {info['ROC-AUC'][i]} Loss {info['Loss'][i]}")
-
-
-

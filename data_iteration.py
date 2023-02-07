@@ -4,7 +4,7 @@ from helper import *
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.autograd.profiler as profiler
-from sklearn.metrics import roc_auc_score, roc_curve
+from sklearn.metrics import roc_auc_score
 from pathlib import Path
 import math
 from tqdm import tqdm
@@ -17,38 +17,7 @@ import warnings
 
 class FocalLoss(nn.Module):
     r"""Criterion that computes Focal loss.
-
-    According to [1], the Focal loss is computed as follows:
-
-    .. math::
-
-        \text{FL}(p_t) = -\alpha_t (1 - p_t)^{\gamma} \, \text{log}(p_t)
-
-    where:
-       - :math:`p_t` is the model's estimated probability for each class.
-
-
-    Arguments:
-        alpha (float): Weighting factor :math:`\alpha \in [0, 1]`.
-        gamma (float): Focusing parameter :math:`\gamma >= 0`.
-        reduction (Optional[str]): Specifies the reduction to apply to the
-         output: ‘none’ | ‘mean’ | ‘sum’. ‘none’: no reduction will be applied,
-         ‘mean’: the sum of the output will be divided by the number of elements
-         in the output, ‘sum’: the output will be summed. Default: ‘none’.
-
-    Shape:
-        - Input: :math:`(N, C, H, W)` where C = number of classes.
-        - Target: :math:`(N, H, W)` where each value is
-          :math:`0 ≤ targets[i] ≤ C−1`.
-
-    Examples:
-        >>> N = 5  # num_classes
-        >>> loss = tgm.losses.FocalLoss(alpha=0.5, gamma=2.0, reduction='mean')
-        >>> input = torch.randn(1, N, 3, 5, requires_grad=True)
-        >>> target = torch.empty(1, 3, 5, dtype=torch.long).random_(N)
-        >>> output = loss(input, target)
-        >>> output.backward()
-
+    
     References:
         [1] https://arxiv.org/abs/1708.02002
     """
@@ -290,7 +259,7 @@ def process(args, protein_pair, net):
     P1 = process_single(protein_pair, chain_idx=1)
     if not "gen_xyz_p1" in protein_pair.keys:
         if args.random_rotation:
-            R1 = tensor(Rotation.random().as_matrix())
+            R1 = tensor(Rotation.random().as_matrix()).to(args.device)
             atom_center1 = P1["atoms"].mean(dim=-2, keepdim=True)
             P1['atoms']=torch.matmul(R1, P1['atoms'].T).T.contiguous()-atom_center1 
             net.preprocess_surface(P1)
@@ -309,7 +278,7 @@ def process(args, protein_pair, net):
         P2 = process_single(protein_pair, chain_idx=2)
         if not "gen_xyz_p2" in protein_pair.keys:
             if args.random_rotation:
-                R2 = tensor(Rotation.random().as_matrix())
+                R2 = tensor(Rotation.random().as_matrix()).to(args.device)
                 atom_center2 = P2["atoms"].mean(dim=-2, keepdim=True)
                 P2['atoms']=torch.matmul(R2, P2['atoms'].T).T.contiguous()-atom_center2 
                 net.preprocess_surface(P2)
@@ -448,9 +417,7 @@ def iterate(
     test=False,
     save_path=None,
     pdb_ids=None,
-    summary_writer=None,
     epoch_number=None,
-    roccurve=False
 ):
     """Goes through one epoch of the dataset, returns information for Tensorboard."""
 
@@ -523,25 +490,6 @@ def iterate(
                 torch.cuda.synchronize()
                 back_time = time.time() - back_time
 
-
-            if it == protein_it == 0 and not test and summary_writer != None:
-                for para_it, parameter in enumerate(net.atomnet.parameters()):
-                    if parameter.requires_grad:
-                        summary_writer.add_histogram(
-                            f"Gradients/Atomnet/para_{para_it}_{parameter.shape}",
-                            parameter.grad.view(-1)
-                        )
-                for para_it, parameter in enumerate(net.conv.parameters()):
-                    if parameter.requires_grad:
-                        summary_writer.add_histogram(
-                            f"Gradients/Conv/para_{para_it}_{parameter.shape}",
-                            parameter.grad.view(-1)
-                        )
-
-                for d, features in enumerate(P1["input_features"].T):
-                    summary_writer.add_histogram(f"Input features/{d}", features)
-
-
             if save_path is not None:
                 save_protein_batch_single(
                     batch_ids[protein_it], P1, save_path, pdb_idx=1
@@ -559,25 +507,11 @@ def iterate(
                         a,b, multi_class='ovo', 
                         labels=list(range(args.n_outputs))
                     )
-                    if roccurve:
-                        tp=[]
-                        fp=[]
-                        for i in range(args.n_outputs):
-                            with warnings.catch_warnings():
-                                warnings.filterwarnings("ignore")
-                                tpr, fpr, _=roc_curve(a, b[:,i], pos_label=i)
-                            tp.append(tpr)
-                            fp.append(fpr)
-                        #tp=np.array(tp, dtype=object)
-                        #fp=np.array(fp, dtype=object)
+                    
                 else:
                     a=np.rint(numpy(sampled_labels.view(-1)))
                     b=numpy(sampled_preds.view(-1))
                     roc_auc = roc_auc_score(a, b)
-                    if roccurve:
-                        tp, fp, _=roc_curve(a, b)
-                        tp=[tp]#np.array([tp], dtype=object)
-                        fp=[fp]#np.array([fp], dtype=object)
             else:
                 roc_auc = 0.0
            
@@ -592,9 +526,7 @@ def iterate(
                         "memory_usage": outputs["memory_usage"],
                     },
                     # Merge the "R_values" dict into "info", with a prefix:
-                    **{"R_values/" + k: v for k, v in R_values.items()},
-                    **{'ROC_curve': (tp, fp) for k in range(roccurve)}
-                )
+                    **{"R_values/" + k: v for k, v in R_values.items()}                )
             )
             torch.cuda.synchronize()
             iteration_time = time.time() - iteration_time

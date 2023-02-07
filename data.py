@@ -464,21 +464,14 @@ class ProteinPairsSurfaces(InMemoryDataset):
 class NpiDataset(InMemoryDataset):
 
 
-    def __init__(self, root, list_file, transform=None, pre_transform=None, pre_filter=None, binary=False):
+    def __init__(self, root, list_file,  la, aa, prefix='', transform=None, pre_transform=None, pre_filter=None):
         
         with open(list_file) as f_tr:
             self.list = f_tr.read().splitlines()
 
-        self.name=list_file.split('/')[-1].split('.')[0]
-       
-        if binary:
-            self.la={'-':1 }
-            self.name='site_'+self.name
-        else:
-            self.la={'DA':1, "DG": 2, "DC":3, "DT":4, 'A':1, "G": 2, "C":3, "U":4, '-':0 }
-            self.name='npi_'+self.name
-
-        self.aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5 }
+        self.name=prefix+list_file.split('/')[-1].split('.')[0]
+        self.la=la
+        self.aa=aa
         
         super(NpiDataset, self).__init__(root, transform, pre_transform,pre_filter)
 
