@@ -112,20 +112,20 @@ def protonate(in_pdb_file, out_pdb_file):
 
 
 
-def get_single(pdb_id: str,chains: list, save_res: bool):
+def get_single(pdb_id: str,chains: list, save_res: bool, protonate=True):
     protonated_file = pdb_dir/f"{pdb_id}.pdb"
     if not protonated_file.exists():
         # Download pdb 
         pdbl = PDBList()
         pdb_filename = pdbl.retrieve_pdb_file(pdb_id, pdir=tmp_dir,file_format='pdb')
 
-        ##### Protonate with reduce, if hydrogens included.
-        # - Always protonate as this is useful for charges. If necessary ignore hydrogens later.
-        protonate(pdb_filename, protonated_file)
+        if protonate:
+            protonate(pdb_filename, protonated_file)
 
     pdb_filename = protonated_file
 
     # Extract chains of interest.
+    p=[]
     for chain in chains:
         out_filename = pdb_dir/f"{pdb_id}_{chain}.pdb"
         try:
@@ -138,6 +138,8 @@ def get_single(pdb_id: str,chains: list, save_res: bool):
         np.save(npy_dir / f"{pdb_id}_{chain}_atomtypes", protein["types"])
         if save_res:
             np.save(npy_dir / f"{pdb_id}_{chain}_resnames", protein["resnames"])
+        p.append(protein)
+    return p
 
 
 if __name__ == '__main__':

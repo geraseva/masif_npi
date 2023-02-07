@@ -134,31 +134,20 @@ class CenterPairAtoms(object):
 
 
 def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, atom_encoder=None,label_encoder=None):
-    """Loads a protein surface mesh and its features"""
 
-    # Load the data, and read the connectivity information:
-
-    triangles = (
-        None
-        if single_pdb
-        else inttensor(np.load(data_dir+'/'+(pdb_id + "_triangles.npy"))).T
-    )
-    # Normalize the point cloud, as specified by the user:
-    points = None if single_pdb else tensor(np.load(data_dir+'/'+(pdb_id + "_xyz.npy")))
-    center_location = None if single_pdb else torch.mean(points, axis=0, keepdims=True)
-
-    atom_coords = tensor(np.load(data_dir+'/'+(pdb_id + "_atomxyz.npy")))
+    atom_types=np.load(data_dir+'/'+(pdb_id + "_atomtypes.npy"))
+    mask=np.ones(atom_types.shape[0], dtype=bool) #create mask to exclude some atoms from computation
 
     if atom_encoder!=None:
         d=atom_encoder.get('-')
         if d==None:
             d=0
-        atom_types=np.load(data_dir+'/'+(pdb_id + "_atomtypes.npy"))
         atom_types_enc=[atom_encoder.get(a, d) for a in atom_types]
-        atom_types=inttensor(np.array(atom_types_enc))
+        mask=mask&(atom_types_enc>=0)
+        atom_types=inttensor(np.array(atom_types_enc)*mask)
         atom_types=F.one_hot(atom_types,num_classes=max(atom_encoder.values())+1).float()
     else:
-        atom_types=tensor(np.load(data_dir+'/'+(pdb_id + "_atomtypes.npy")))
+        atom_types=tensor(atom_types)
 
     if label_encoder!=None:
         d=label_encoder.get('-')
@@ -166,11 +155,22 @@ def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, atom_enco
             d=0
         atom_res=np.load(data_dir+'/'+(pdb_id + "_resnames.npy"))
         atom_res_enc=[label_encoder.get(a, d) for a in atom_res]
-        atom_res=inttensor(np.array(atom_res_enc))
+        mask=mask&(atom_res_enc>=0)
+        atom_res=inttensor(np.array(atom_res_enc)*mask)
+        atom_res=atom_res[mask]
     else:
         atom_res=None
 
+    atom_types=atom_types[mask]
+    atom_coords = tensor(np.load(data_dir+'/'+(pdb_id + "_atomxyz.npy")))[mask]
 
+    triangles = (
+        None
+        if single_pdb
+        else inttensor(np.load(data_dir+'/'+(pdb_id + "_triangles.npy"))).T[mask]
+    )
+    points = None if single_pdb else tensor(np.load(data_dir+'/'+(pdb_id + "_xyz.npy"))[mask])
+    center_location = None if single_pdb else torch.mean(points, axis=0, keepdims=True)
     if center:
         points = points - center_location
         atom_coords = atom_coords - center_location
@@ -179,17 +179,17 @@ def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, atom_enco
     iface_labels = (
         None
         if single_pdb
-        else inttensor(np.load(data_dir+'/'+(pdb_id + "_iface_labels.npy")).reshape((-1, 1)))
+        else inttensor(np.load(data_dir+'/'+(pdb_id + "_iface_labels.npy")).reshape((-1, 1))[mask])
     )
 
     # Features
     chemical_features = (
-        None if single_pdb else tensor(np.load(data_dir+'/'+(pdb_id + "_features.npy")))
+        None if single_pdb else tensor(np.load(data_dir+'/'+(pdb_id + "_features.npy"))[mask])
     )
 
     # Normals
     normals = (
-        None if single_pdb else tensor(np.load(data_dir+'/'+(pdb_id + "_normals.npy")))
+        None if single_pdb else tensor(np.load(data_dir+'/'+(pdb_id + "_normals.npy"))[mask])
     )
 
     protein_data = Data(

@@ -53,11 +53,7 @@ transformations = (
 
 # PyTorch geometric expects an explicit list of "batched variables":
 batch_vars = ["xyz_p1", "xyz_p2", "atom_coords_p1", "atom_coords_p2"]
-if args.site:
-    self.la={'-':1 }
-    prefix='site_'
-else:
-    prefix='npi_'
+
 if args.na=='DNA':
     train_dataset="lists/training_dna.txt"
     test_dataset="lists/testing_dna.txt"
@@ -66,7 +62,17 @@ elif args.na=='RNA':
     train_dataset="lists/training_rna.txt"
     test_dataset="lists/testing_rna.txt"
     la={'A':1, "G": 2, "C":3, "U":4, '-':0 }
+elif args.na=='NA':
+    train_dataset="lists/training_npi.txt"
+    test_dataset="lists/testing_npi.txt"
+    la={'DA':1, "DG": 2, "DC":3, "DT":4, 'A':1, "G": 2, "C":3, "U":4, '-':0 }
 
+if args.site:
+    la={'-':1 }
+    prefix='site_'
+else:
+    prefix='npi_'
+    
 aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5 }
 
 
