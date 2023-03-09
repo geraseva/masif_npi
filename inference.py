@@ -77,11 +77,13 @@ net = dMaSIF(args)
 net.load_state_dict(
     torch.load(model_path, map_location=args.device)["model_state_dict"]
 )
+
 net = net.to(args.device)
 
 # Perform one pass through the data:
 if not os.path.isdir(save_predictions_path):
     os.makedirs(save_predictions_path)
+
 
 info = iterate(
     net,
@@ -94,8 +96,6 @@ info = iterate(
 )
 
 info['indexes']=test_pdb_ids
-
-np.save(f"preds/{args.experiment_name}_roc.npy", info['ROC_curve'])
 
 print('Mean roc-auc:',np.mean(info["ROC-AUC"]),'std roc-auc:',np.std(info["ROC-AUC"]))
 

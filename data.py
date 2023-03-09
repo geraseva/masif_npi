@@ -135,16 +135,19 @@ class CenterPairAtoms(object):
 
 def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, atom_encoder=None,label_encoder=None):
 
-    atom_types=np.load(data_dir+'/'+(pdb_id + "_atomtypes.npy"))
+    try:
+        atom_types=np.load(data_dir+'/'+(pdb_id + "_atomtypes.npy"))
+    except FileNotFoundError:
+        atom_types=np.array([])
     mask=np.ones(atom_types.shape[0], dtype=bool) #create mask to exclude some atoms from computation
 
     if atom_encoder!=None:
         d=atom_encoder.get('-')
         if d==None:
             d=0
-        atom_types_enc=[atom_encoder.get(a, d) for a in atom_types]
+        atom_types_enc=np.array([atom_encoder.get(a, d) for a in atom_types])
         mask=mask&(atom_types_enc>=0)
-        atom_types=inttensor(np.array(atom_types_enc)*mask)
+        atom_types=inttensor(atom_types_enc*mask)
         atom_types=F.one_hot(atom_types,num_classes=max(atom_encoder.values())+1).float()
     else:
         atom_types=tensor(atom_types)
@@ -153,23 +156,29 @@ def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, atom_enco
         d=label_encoder.get('-')
         if d==None:
             d=0
-        atom_res=np.load(data_dir+'/'+(pdb_id + "_resnames.npy"))
-        atom_res_enc=[label_encoder.get(a, d) for a in atom_res]
+        try:
+            atom_res=np.load(data_dir+'/'+(pdb_id + "_resnames.npy"))
+        except FileNotFoundError:
+            atom_res=np.array([])
+        atom_res_enc=np.array([label_encoder.get(a, d) for a in atom_res])
         mask=mask&(atom_res_enc>=0)
-        atom_res=inttensor(np.array(atom_res_enc)*mask)
+        atom_res=inttensor(atom_res_enc*mask)
         atom_res=atom_res[mask]
     else:
         atom_res=None
 
     atom_types=atom_types[mask]
-    atom_coords = tensor(np.load(data_dir+'/'+(pdb_id + "_atomxyz.npy")))[mask]
+    try:
+        atom_coords = tensor(np.load(data_dir+'/'+(pdb_id + "_atomxyz.npy")))[mask]
+    except FileNotFoundError:
+        atom_coords=tensor(np.zeros((0,3)))[mask]
 
     triangles = (
         None
         if single_pdb
-        else inttensor(np.load(data_dir+'/'+(pdb_id + "_triangles.npy"))).T[mask]
+        else inttensor(np.load(data_dir+'/'+(pdb_id + "_triangles.npy"))).T
     )
-    points = None if single_pdb else tensor(np.load(data_dir+'/'+(pdb_id + "_xyz.npy"))[mask])
+    points = None if single_pdb else tensor(np.load(data_dir+'/'+(pdb_id + "_xyz.npy")))
     center_location = None if single_pdb else torch.mean(points, axis=0, keepdims=True)
     if center:
         points = points - center_location
@@ -179,17 +188,17 @@ def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, atom_enco
     iface_labels = (
         None
         if single_pdb
-        else inttensor(np.load(data_dir+'/'+(pdb_id + "_iface_labels.npy")).reshape((-1, 1))[mask])
+        else inttensor(np.load(data_dir+'/'+(pdb_id + "_iface_labels.npy")).reshape((-1, 1)))
     )
 
     # Features
     chemical_features = (
-        None if single_pdb else tensor(np.load(data_dir+'/'+(pdb_id + "_features.npy"))[mask])
+        None if single_pdb else tensor(np.load(data_dir+'/'+(pdb_id + "_features.npy")))
     )
 
     # Normals
     normals = (
-        None if single_pdb else tensor(np.load(data_dir+'/'+(pdb_id + "_normals.npy"))[mask])
+        None if single_pdb else tensor(np.load(data_dir+'/'+(pdb_id + "_normals.npy")))
     )
 
     protein_data = Data(
@@ -282,8 +291,6 @@ def load_protein_pair(pdb_id, data_dir,single_pdb=False, aa=None, la=None):
     p1 = load_protein_npy(p1_id, data_dir, center=False,single_pdb=single_pdb, atom_encoder=aa)
     p2 = load_protein_npy(p2_id, data_dir, center=False,single_pdb=single_pdb, atom_encoder=aa, label_encoder=la)
 
-    y_p1 = p1.get("y")
-    y_p2 = p2.get("y")
 
     protein_pair_data = PairData(
         xyz_p1=p1.get("xyz"),
@@ -292,8 +299,8 @@ def load_protein_pair(pdb_id, data_dir,single_pdb=False, aa=None, la=None):
         face_p2=p2.get("face"),
         chemical_features_p1=p1.get("chemical_features"),
         chemical_features_p2=p2.get("chemical_features"),
-        y_p1=y_p1,
-        y_p2=y_p2,
+        y_p1=p1.get("y"),
+        y_p2=p2.get("y"),
         normals_p1=p1.get("normals"),
         normals_p2=p2.get("normals"),
         center_location_p1=p1.get("center_location"),

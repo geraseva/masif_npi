@@ -233,7 +233,7 @@ def project_iface_labels(P, threshold=2.0):
 
 def project_npi_labels(P1, P2, threshold=5.0):
 
-    queries = P1["xyz"]
+    queries = P1[""]
     batch_queries = P1["batch"]
     source = P2["atom_xyz"]
     batch_source = P2["batch_atoms"]
@@ -272,7 +272,10 @@ def process(args, protein_pair, net):
             project_iface_labels(P1)
         else:
             P2 = process_single(protein_pair, chain_idx=2)
-            project_npi_labels(P1, P2, threshold=5.0)
+            if P2['atom_xyz'].shape[0]==0:
+                P1["labels"] = torch.zeros(P1["xyz"].shape[0]).to(args.device)
+            else:
+                project_npi_labels(P1, P2, threshold=5.0)
     P2 = None
     if not args.single_protein:
         P2 = process_single(protein_pair, chain_idx=2)
@@ -461,7 +464,6 @@ def iterate(
             P1 = extract_single(P1_batch, protein_it)
             P2 = None if args.single_protein else extract_single(P2_batch, protein_it)
 
-
             torch.cuda.synchronize()
             prediction_time = time.time()
             outputs = net(P1, P2)
@@ -473,7 +475,7 @@ def iterate(
 
             if args.search:
                 generate_matchinglabels(args, P1, P2)
-
+            
             if P1["labels"] is not None:
                 loss, sampled_preds, sampled_labels = compute_loss(args, P1, P2)
             else:

@@ -13,7 +13,7 @@ from geometry_processing import (
     atoms_to_points_normals,
 )
 from helper import soft_dimension, diagonal_ranges
-from benchmark_models import DGCNN_seg, PointNet2_seg, dMaSIFConv_seg
+from benchmark_models import dMaSIFConv_seg
 
 torch.autograd.set_detect_anomaly(False)
 
@@ -466,16 +466,15 @@ class dMaSIF(nn.Module):
 
         self.dropout = nn.Dropout(args.dropout)
 
-        if args.embedding_layer == "dMaSIF":
             # Post-processing, without batch norm:
-            self.orientation_scores = nn.Sequential(
+        self.orientation_scores = nn.Sequential(
                 nn.Linear(I, O),
                 nn.LeakyReLU(negative_slope=0.2),
                 nn.Linear(O, 1),
             )
 
             # Segmentation network:
-            self.conv = dMaSIFConv_seg(
+        self.conv = dMaSIFConv_seg(
                 args,
                 in_channels=I,
                 out_channels=E,
@@ -484,30 +483,20 @@ class dMaSIF(nn.Module):
             )
 
             # Asymmetric embedding
-            if args.search:
-                self.orientation_scores2 = nn.Sequential(
+        if args.search:
+            self.orientation_scores2 = nn.Sequential(
                     nn.Linear(I, O),
                     nn.LeakyReLU(negative_slope=0.2),
                     nn.Linear(O, 1),
                 )
 
-                self.conv2 = dMaSIFConv_seg(
+            self.conv2 = dMaSIFConv_seg(
                     args,
                     in_channels=I,
                     out_channels=E,
                     n_layers=args.n_layers,
                     radius=args.radius,
                 )
-
-        elif args.embedding_layer == "DGCNN":
-            self.conv = DGCNN_seg(I + 3, E,self.args.n_layers,self.args.k)
-            if args.search:
-                self.conv2 = DGCNN_seg(I + 3, E,self.args.n_layers,self.args.k)
-
-        elif args.embedding_layer == "PointNet++":
-            self.conv = PointNet2_seg(args, I, E)
-            if args.search:
-                self.conv2 = PointNet2_seg(args, I, E)
 
         if args.site:
             # Post-processing, without batch norm:
@@ -569,49 +558,33 @@ class dMaSIF(nn.Module):
 
         features = self.dropout(self.features(P))
         P["input_features"] = features
-
-        torch.cuda.synchronize(device=features.device)
-        #torch.cuda.reset_max_memory_allocated(device=P["atoms"].device)
+        
+        torch.cuda.synchronize() 
         begin = time.time()
 
         # Ours:
-        if self.args.embedding_layer == "dMaSIF":
-            self.conv.load_mesh(
+        self.conv.load_mesh(
                 P["xyz"],
                 triangles=P["triangles"] if self.args.use_mesh else None,
                 normals=None if self.args.use_mesh else P["normals"],
                 weights=self.orientation_scores(features),
                 batch=P["batch"],
             )
-            P["embedding_1"] = self.conv(features)
-            if self.args.search:
-                self.conv2.load_mesh(
+        P["embedding_1"] = self.conv(features)
+        if self.args.search:
+            self.conv2.load_mesh(
                     P["xyz"],
                     triangles=P["triangles"] if self.args.use_mesh else None,
                     normals=None if self.args.use_mesh else P["normals"],
                     weights=self.orientation_scores2(features),
                     batch=P["batch"],
                 )
-                P["embedding_2"] = self.conv2(features)
+            P["embedding_2"] = self.conv2(features)
 
-        # First baseline:
-        elif self.args.embedding_layer == "DGCNN":
-            features = torch.cat([features, P["xyz"]], dim=-1).contiguous()
-            P["embedding_1"] = self.conv(P["xyz"], features, P["batch"].to(torch.int64))
-            if self.args.search:
-                P["embedding_2"] = self.conv2(
-                    P["xyz"], features, P["batch"]
-                )
 
-        # Second baseline
-        elif self.args.embedding_layer == "PointNet++":
-            P["embedding_1"] = self.conv(P["xyz"], features, P["batch"])
-            if self.args.search:
-                P["embedding_2"] = self.conv2(P["xyz"], features, P["batch"])
-
-        torch.cuda.synchronize(device=features.device)
         end = time.time()
-        memory_usage = torch.cuda.max_memory_allocated(device=P["atoms"].device)
+        torch.cuda.synchronize()
+        memory_usage = torch.cuda.max_memory_allocated()
         conv_time = end - begin
 
         return conv_time, memory_usage

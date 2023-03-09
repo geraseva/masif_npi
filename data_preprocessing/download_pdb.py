@@ -27,7 +27,7 @@ parser.add_argument(
 
 tmp_dir = Path('/home/domain/tmp')
 pdb_dir = Path('/home/domain/data/geraseva/masif/data/masif_npi/data_preparation/00-raw_pdbs')
-npy_dir = Path('./rnaprot_dataset/raw')
+npy_dir = Path('./npi_dataset/raw')
 
 PROTEIN_LETTERS = [x.upper() for x in IUPACData.protein_letters_3to1.keys()]
 
@@ -112,14 +112,14 @@ def protonate(in_pdb_file, out_pdb_file):
 
 
 
-def get_single(pdb_id: str,chains: list, save_res: bool, protonate=True):
+def get_single(pdb_id: str,chains: list, save_res: bool, prot=True):
     protonated_file = pdb_dir/f"{pdb_id}.pdb"
     if not protonated_file.exists():
         # Download pdb 
         pdbl = PDBList()
         pdb_filename = pdbl.retrieve_pdb_file(pdb_id, pdir=tmp_dir,file_format='pdb')
 
-        if protonate:
+        if prot:
             protonate(pdb_filename, protonated_file)
 
     pdb_filename = protonated_file

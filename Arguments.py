@@ -10,13 +10,6 @@ parser.add_argument(
     "--use_mesh", type=bool, default=False, help="Use precomputed surfaces"
 )
 parser.add_argument(
-    "--embedding_layer",
-    type=str,
-    default="dMaSIF",
-    choices=["dMaSIF", "DGCNN", "PointNet++"],
-    help="Which convolutional embedding layer to use",
-)
-parser.add_argument(
     "--feature_generation",
     type=str,
     default="AtomNet",
@@ -101,12 +94,6 @@ parser.add_argument(
     help="Number of hidden units for the orientation score MLP",
 )
 parser.add_argument(
-    "--unet_hidden_channels",
-    type=int,
-    default=8,
-    help="Number of hidden units for TangentConv UNet",
-)
-parser.add_argument(
     "--post_units",
     type=int,
     default=8,
@@ -123,12 +110,6 @@ parser.add_argument(
 )
 parser.add_argument(
     "--radius", type=float, default=9.0, help="Radius to use for the convolution"
-)
-parser.add_argument(
-    "--k",
-    type=int,
-    default=40,
-    help="Number of nearest neighbours for DGCNN and PointNet++",
 )
 parser.add_argument(
     "--dropout",
