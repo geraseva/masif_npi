@@ -28,7 +28,7 @@ parser.add_argument(
     "--na",
     type=str,
     default="DNA",
-    choices=["DNA", "RNA"],
+    choices=["DNA", "RNA", 'NA'],
     help="Which nucleic acid to use",
 )
 parser.add_argument("--profile", type=bool, default=False, help="Profile code")

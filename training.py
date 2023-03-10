@@ -67,14 +67,16 @@ elif args.na=='NA':
     test_dataset="lists/testing_npi.txt"
     la={'DA':1, "DG": 2, "DC":3, "DT":4, 'A':1, "G": 2, "C":3, "U":4, '-':0 }
 
+aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5 }
 if args.site:
     la={'-':1 }
     prefix='site_'
-else:
+elif args.npi:
     prefix='npi_'
+elif args.search:
+    prefix='search_'
+    aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "P": 5, '-': -1 }
     
-aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5 }
-
 
 # Load the train dataset:
 if args.dataset=='NpiDataset':
@@ -137,12 +139,8 @@ elif args.transfer_learning != "":
         net.atomnet.load_state_dict(net1.atomnet.state_dict())
     except:
         pass 
-    else:
-        try:
-            net.conv.load_state_dict(net1.conv.state_dict())
-        except:
-            pass 
-    net1=None
+    
+    del net1
 
 
 
@@ -173,9 +171,6 @@ for i in range(starting_epoch, args.n_epochs):
             test=test,
             epoch_number=i,
         )
-
-        # Write down the results using a TensorBoard writer:
-
 
         for key, val in info.items():
             if key in [
