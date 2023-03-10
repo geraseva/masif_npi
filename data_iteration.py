@@ -233,7 +233,7 @@ def project_iface_labels(P, threshold=2.0):
 
 def project_npi_labels(P1, P2, threshold=5.0):
 
-    queries = P1[""]
+    queries = P1["xyz"]
     batch_queries = P1["batch"]
     source = P2["atom_xyz"]
     batch_source = P2["batch_atoms"]
