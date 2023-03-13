@@ -270,7 +270,7 @@ def process(args, protein_pair, net):
             net.preprocess_surface(P1)
         if P1["mesh_labels"] is not None:
             project_iface_labels(P1)
-        else:
+        elif args.single_protein:
             P2 = process_single(protein_pair, chain_idx=2)
             if P2['atom_xyz'].shape[0]==0:
                 P1["labels"] = torch.zeros(P1["xyz"].shape[0]).to(args.device)
@@ -292,15 +292,18 @@ def process(args, protein_pair, net):
                 net.preprocess_surface(P2)         
             if P2["mesh_labels"] is not None:
                 project_iface_labels(P2)
-            else:
+            elif not args.search:
                 project_npi_labels(P2, P1, threshold=5.0)
+            else:
+                generate_matchinglabels(args, P1, P2)
 
     return P1, P2
 
 
 def generate_matchinglabels(args, P1, P2):
-    if args.random_rotation:
+    if P1.get("atom_center") is not None:
         P1["xyz"] = torch.matmul(P1["rand_rot"].T, P1["xyz"].T).T + P1["atom_center"]
+    if P2.get("atom_center") is not None:
         P2["xyz"] = torch.matmul(P2["rand_rot"].T, P2["xyz"].T).T + P2["atom_center"]
     xyz1_i = LazyTensor(P1["xyz"][:, None, :].contiguous())
     xyz2_j = LazyTensor(P2["xyz"][None, :, :].contiguous())
@@ -473,8 +476,8 @@ def iterate(
             P1 = outputs["P1"]
             P2 = outputs["P2"]
 
-            if args.search:
-                generate_matchinglabels(args, P1, P2)
+            #if args.search:
+            #    generate_matchinglabels(args, P1, P2)
             
             if P1["labels"] is not None:
                 loss, sampled_preds, sampled_labels = compute_loss(args, P1, P2)
