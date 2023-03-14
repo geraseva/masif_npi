@@ -63,8 +63,8 @@ elif args.na=='RNA':
     test_dataset="lists/testing_rna.txt"
     la={'A':1, "G": 2, "C":3, "U":4, '-':0 }
 elif args.na=='NA':
-    train_dataset="lists/training_try.txt"
-    test_dataset="lists/testing_try.txt"
+    train_dataset="lists/training_npi.txt"
+    test_dataset="lists/testing_npi.txt"
     la={'DA':1, "DG": 2, "DC":3, "DT":4, 'A':1, "G": 2, "C":3, "U":4, '-':0 }
 
 aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5 }
