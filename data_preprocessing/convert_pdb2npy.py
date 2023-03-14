@@ -16,7 +16,7 @@ def load_structure_np(fname, center):
     res=[]
     for atom in atoms:
         coords.append(atom.get_coord())
-        types.append(atom.element)
+        types.append(atom.get_name())
         res.append(atom.get_parent().get_resname())
 
     coords = np.stack(coords)
