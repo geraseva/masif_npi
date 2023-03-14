@@ -134,7 +134,7 @@ def subsample(x, batch=None, scale=1.0):
     return torch.cat(points, dim=0), torch.cat(batches, dim=0)
 
 
-def soft_distances(x, y, batch_x, batch_y, smoothness=0.01, atomtypes=None):
+def soft_distances(x, y, batch_x, batch_y, smoothness=0.01, atomtypes=None, aa=None):
     """Computes a soft distance function to the atom centers of a protein.
 
     Implements Eq. (1) of the paper in a fast and numerically stable way.
@@ -150,6 +150,8 @@ def soft_distances(x, y, batch_x, batch_y, smoothness=0.01, atomtypes=None):
     Returns:
         Tensor: (M,) values of the soft distance function on the points `y`.
     """
+
+    atomic_dict={'H': 110, 'C': 170, 'N': 155, 'O': 152, 'P': 180, 'S': 180, 'Se': 190}
     # Build the (N, M, 1) symbolic matrix of squared distances:
     x_i = LazyTensor(x[:, None, :])  # (N, 1, 3) atoms
     y_j = LazyTensor(y[None, :, :])  # (1, M, 3) sampling points
@@ -159,16 +161,20 @@ def soft_distances(x, y, batch_x, batch_y, smoothness=0.01, atomtypes=None):
     D_ij.ranges = diagonal_ranges(batch_x, batch_y)
 
     if atomtypes is not None:
-        # Turn the one-hot encoding "atomtypes" into a vector of diameters "smoothness_i":
-        # (N, 6)  -> (N, 1, 1)  (There are 6 atom types)
-        if x.device==torch.device('cpu'):
-            atomic_radii = torch.FloatTensor(
-            [170, 110, 152, 155, 180, 190])
+        if aa is not None:
+            type_list=np.full(atomtypes.shape[-1],110)
+            for key in aa:
+                if aa[key]>0:
+                    type_list[aa[key]]=atomic_dict[key]
         else:
-            atomic_radii = torch.cuda.FloatTensor(
-            [170, 110, 152, 155, 180, 190], device=x.device
-        )
-        atomic_radii = atomic_radii / atomic_radii.min()
+            type_list=[170, 110, 152, 155, 180, 190]
+        # Turn the one-hot encoding "atomtypes" into a vector of diameters "smoothness_i":
+        if x.device==torch.device('cpu'):
+            atomic_radii = torch.FloatTensor(type_list)
+            
+        else:
+            atomic_radii = torch.cuda.FloatTensor(type_list, device=x.device)
+        atomic_radii = atomic_radii / 110
         atomtype_radii = atomtypes * atomic_radii[None, :]  # n_atoms, n_atomtypes
         # smoothness = atomtypes @ atomic_radii  # (N, 6) @ (6,) = (N,)
         smoothness = torch.sum(
@@ -216,6 +222,7 @@ def atoms_to_points_normals(
     atomtypes=None,
     sup_sampling=20,
     variance=0.1,
+    aa=None
 ):
     """Turns a collection of atoms into an oriented point cloud.
 
@@ -273,6 +280,7 @@ def atoms_to_points_normals(
                 batch_z,
                 smoothness=smoothness,
                 atomtypes=atomtypes,
+                aa=aa
             )
             Loss = ((dists - T) ** 2).sum()
             g = torch.autograd.grad(Loss, z)[0]
@@ -280,7 +288,7 @@ def atoms_to_points_normals(
 
         # d) Only keep the points which are reasonably close to the level set:
         dists = soft_distances(
-            atoms, z, batch_atoms, batch_z, smoothness=smoothness, atomtypes=atomtypes
+            atoms, z, batch_atoms, batch_z, smoothness=smoothness, atomtypes=atomtypes,aa=aa
         )
         margin = (dists - T).abs()
         mask = margin < variance * T
@@ -295,7 +303,7 @@ def atoms_to_points_normals(
                 batch_atoms,
                 batch_z,
                 smoothness=smoothness,
-                atomtypes=atomtypes,
+                atomtypes=atomtypes,aa=aa
             )
             Loss = (1.0 * dists).sum()
             g = torch.autograd.grad(Loss, zz)[0]
@@ -303,7 +311,7 @@ def atoms_to_points_normals(
             zz = zz + 1.0 * T * normals
 
         dists = soft_distances(
-            atoms, zz, batch_atoms, batch_z, smoothness=smoothness, atomtypes=atomtypes
+            atoms, zz, batch_atoms, batch_z, smoothness=smoothness, atomtypes=atomtypes,aa=aa
         )
         mask = mask & (dists > 1.5 * T)
 
@@ -323,6 +331,7 @@ def atoms_to_points_normals(
             batch_points,
             smoothness=smoothness,
             atomtypes=atomtypes,
+            aa=aa
         )
         Loss = (1.0 * dists).sum()
         g = torch.autograd.grad(Loss, p)[0]

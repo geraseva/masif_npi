@@ -99,11 +99,6 @@ def iface_valid_filter(protein_pair):
         valid2 = (
             (torch.sum(labels2) < 0.75 * len(labels2))
             and (torch.sum(labels2) > 30)
-            and (torch.sum(labels2) > 0.01 * labels1.shape[0])
-        )
-        valid1 = (
-            valid1 
-            and (torch.sum(labels1) > 0.01 * labels2.shape[0])
         )
     else:
         valid2=True
@@ -115,10 +110,11 @@ def process_single(protein_pair, chain_idx=1):
     """Turn the PyG data object into a dict."""
 
     P = {}
-    with_mesh = "face_p1" in protein_pair.keys
-    preprocessed = "gen_xyz_p1" in protein_pair.keys
 
     if chain_idx == 1:
+        with_mesh = "face_p1" in protein_pair.keys
+        preprocessed = "gen_xyz_p1" in protein_pair.keys
+
         # Ground truth labels are available on mesh vertices:
         P["mesh_labels"] = protein_pair.y_p1 if with_mesh else None
 
@@ -146,7 +142,10 @@ def process_single(protein_pair, chain_idx=1):
         P["labels"] = protein_pair.gen_labels_p1 if preprocessed else None
 
     elif chain_idx == 2:
-        # Ground truth labels are available on mesh vertices:
+        with_mesh = "face_p2" in protein_pair.keys
+        preprocessed = "gen_xyz_p2" in protein_pair.keys
+
+                # Ground truth labels are available on mesh vertices:
         P["mesh_labels"] = protein_pair.y_p2 if with_mesh else None
 
         # N.B.: The DataLoader should use the optional argument
@@ -268,14 +267,14 @@ def process(args, protein_pair, net):
             P1['normals']=torch.matmul(R1.T, P1['normals'].T).T.contiguous()
         else:
             net.preprocess_surface(P1)
-        if P1["mesh_labels"] is not None:
-            project_iface_labels(P1)
-        elif args.single_protein:
-            P2 = process_single(protein_pair, chain_idx=2)
-            if P2['atom_xyz'].shape[0]==0:
-                P1["labels"] = torch.zeros(P1["xyz"].shape[0]).to(args.device)
-            else:
-                project_npi_labels(P1, P2, threshold=5.0)
+    if P1["mesh_labels"] is not None:
+        project_iface_labels(P1)
+    elif args.single_protein:
+        P2 = process_single(protein_pair, chain_idx=2)
+        if P2['atom_xyz'].shape[0]==0:
+            P1["labels"] = torch.zeros(P1["xyz"].shape[0]).to(args.device)
+        else:
+            project_npi_labels(P1, P2, threshold=5.0)
     P2 = None
     if not args.single_protein:
         P2 = process_single(protein_pair, chain_idx=2)
@@ -290,27 +289,30 @@ def process(args, protein_pair, net):
                 P2['normals']=torch.matmul(R2.T, P2['normals'].T).T.contiguous()
             else:
                 net.preprocess_surface(P2)         
-            if P2["mesh_labels"] is not None:
-                project_iface_labels(P2)
-            elif not args.search:
-                project_npi_labels(P2, P1, threshold=5.0)
-            else:
-                generate_matchinglabels(args, P1, P2)
+        if P2["mesh_labels"] is not None:
+            project_iface_labels(P2)
+        elif not args.search:
+            project_npi_labels(P2, P1, threshold=5.0)
+        else:
+            generate_matchinglabels(args, P1, P2)
 
     return P1, P2
 
 
-def generate_matchinglabels(args, P1, P2):
+def generate_matchinglabels(args, P1, P2, threshold=4.0):
     if P1.get("atom_center") is not None:
-        P1["xyz"] = torch.matmul(P1["rand_rot"].T, P1["xyz"].T).T + P1["atom_center"]
+        xyz1_i = torch.matmul(P1["rand_rot"].T, P1["xyz"].T).T + P1["atom_center"]
+    else:
+        xyz1_i=P1["xyz"]
     if P2.get("atom_center") is not None:
-        P2["xyz"] = torch.matmul(P2["rand_rot"].T, P2["xyz"].T).T + P2["atom_center"]
-    xyz1_i = LazyTensor(P1["xyz"][:, None, :].contiguous())
-    xyz2_j = LazyTensor(P2["xyz"][None, :, :].contiguous())
+        xyz2_j = torch.matmul(P2["rand_rot"].T, P2["xyz"].T).T + P2["atom_center"]
+    else:
+        xyz2_j=P2["xyz"]
+    xyz1_i = LazyTensor(xyz1_i[:, None, :].contiguous())
+    xyz2_j = LazyTensor(xyz2_j[None, :, :].contiguous())
 
-    xyz_dists = ((xyz1_i - xyz2_j) ** 2).sum(-1).sqrt()
-    xyz_dists = (1.0 - xyz_dists).step()
-
+    xyz_dists = ((xyz1_i - xyz2_j) ** 2).sum(-1)
+    xyz_dists = (threshold**2 - xyz_dists).step()
     p1_iface_labels = (xyz_dists.sum(1) > 1.0).float().view(-1)
     p2_iface_labels = (xyz_dists.sum(0) > 1.0).float().view(-1)
 
@@ -318,7 +320,7 @@ def generate_matchinglabels(args, P1, P2):
     P2["labels"] = p2_iface_labels
 
 
-def compute_loss(args, P1, P2, n_points_sample=16):
+def compute_loss(args, P1, P2, n_points_sample=16, threshold=2):
 
     if args.search:
         pos_xyz1 = P1["xyz"][P1["labels"] == 1]
@@ -331,7 +333,7 @@ def compute_loss(args, P1, P2, n_points_sample=16):
         )
         pos_desc_dists = torch.matmul(pos_descs1, pos_descs2.T)
 
-        pos_preds = pos_desc_dists[pos_xyz_dists < 1.0]
+        pos_preds = pos_desc_dists[pos_xyz_dists < threshold]
         pos_labels = torch.ones_like(pos_preds)
 
         n_desc_sample = 100
@@ -345,7 +347,7 @@ def compute_loss(args, P1, P2, n_points_sample=16):
         pos_descs2_2 = P2["embedding_1"][P2["labels"] == 1]
 
         pos_desc_dists2 = torch.matmul(pos_descs2_2, pos_descs1_2.T)
-        pos_preds2 = pos_desc_dists2[pos_xyz_dists.T < 1.0]
+        pos_preds2 = pos_desc_dists2[pos_xyz_dists.T < threshold]
         pos_preds = torch.cat([pos_preds, pos_preds2], dim=0)
         pos_labels = torch.ones_like(pos_preds)
 
@@ -376,7 +378,7 @@ def compute_loss(args, P1, P2, n_points_sample=16):
 
     preds_concat = torch.cat([pos_preds, neg_preds])
     labels_concat = torch.cat([pos_labels, neg_labels])
-
+    
     if args.loss=='CELoss':
         loss = F.cross_entropy(preds_concat, labels_concat)
     elif args.loss=='BCELoss':
@@ -573,7 +575,6 @@ class SurfacePrecompute(object):
         protein_pair.to(self.args.device)
 
         P1, P2 = process(self.args, protein_pair, self.net)
-
         protein_pair.gen_xyz_p1 = P1["xyz"]
         protein_pair.gen_normals_p1 = P1["normals"]
         protein_pair.gen_batch_p1 = P1["batch"]

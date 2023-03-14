@@ -418,26 +418,6 @@ def split_pair(P1P2):
     return P1, P2
 
 
-
-def project_iface_labels(P, threshold=2.0):
-
-    queries = P["xyz"]
-    batch_queries = P["batch"]
-    source = P["mesh_xyz"]
-    batch_source = P["mesh_batch"]
-    labels = P["mesh_labels"]
-    x_i = LazyTensor(queries[:, None, :])  # (N, 1, D)
-    y_j = LazyTensor(source[None, :, :])  # (1, M, D)
-
-    D_ij = ((x_i - y_j) ** 2).sum(-1).sqrt()  # (N, M)
-    D_ij.ranges = diagonal_ranges(batch_queries, batch_source)
-    nn_i = D_ij.argmin(dim=1).view(-1)  # (N,)
-    nn_dist_i = (
-        D_ij.min(dim=1).view(-1, 1) < threshold
-    ).float()  # If chain is not connected because of missing densities MaSIF cut out a part of the protein
-    query_labels = labels[nn_i] * nn_dist_i
-    P["labels"] = query_labels
-
 class dMaSIF(nn.Module):
     def __init__(self, args):
         super(dMaSIF, self).__init__()
@@ -597,6 +577,7 @@ class dMaSIF(nn.Module):
             resolution=self.args.resolution,
             sup_sampling=self.args.sup_sampling,
             distance=self.args.distance,
+            aa=self.args.aa
         )
 
     def forward(self, P1, P2=None):

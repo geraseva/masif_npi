@@ -288,7 +288,7 @@ def load_protein_pair(pdb_id, data_dir,single_pdb=False, aa=None, la=None):
     p1_id = pspl[0] + "_" + pspl[1]
     p2_id = pspl[0] + "_" + pspl[2]
 
-    p1 = load_protein_npy(p1_id, data_dir, center=False,single_pdb=single_pdb, atom_encoder=aa)
+    p1 = load_protein_npy(p1_id, data_dir, center=False,single_pdb=single_pdb, atom_encoder=aa, label_encoder=la)
     p2 = load_protein_npy(p2_id, data_dir, center=False,single_pdb=single_pdb, atom_encoder=aa, label_encoder=la)
 
 
@@ -505,7 +505,6 @@ class NpiDataset(InMemoryDataset):
             protein_pair = load_protein_pair(idx, protein_dir, True, aa=self.aa, la=self.la)
             processed_dataset.append(protein_pair)
             processed_idx.append(idx)
-
         if self.pre_transform is not None:
             print('Precomputing surfaces', file=sys.stderr)
             processed_dataset = [
@@ -516,7 +515,7 @@ class NpiDataset(InMemoryDataset):
             processed_dataset = [
                 data for data in processed_dataset if self.pre_filter(data)
             ]
-
+        
         processed_dataset, slices=self.collate(processed_dataset)
 
         torch.save(
