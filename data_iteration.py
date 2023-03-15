@@ -99,6 +99,7 @@ def iface_valid_filter(protein_pair):
         valid2 = (
             (torch.sum(labels2) < 0.75 * len(labels2))
             and (torch.sum(labels2) > 30)
+            and torch.sum(labels2) < 10000
         )
     else:
         valid2=True
