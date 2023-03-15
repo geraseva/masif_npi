@@ -333,7 +333,7 @@ def compute_loss(args, P1, P2, n_points_sample=16, threshold=2):
         )
         pos_desc_dists = torch.matmul(pos_descs1, pos_descs2.T)
 
-        pos_preds = pos_desc_dists[pos_xyz_dists < threshold**2]
+        pos_preds = pos_desc_dists[(threshold**2 - pos_xyz_dists).step() ]
         pos_labels = torch.ones_like(pos_preds)
 
         n_desc_sample = 100
