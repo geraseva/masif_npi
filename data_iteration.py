@@ -246,7 +246,7 @@ def project_npi_labels(P1, P2, threshold=5.0):
     nn_i = D_ij.argmin(dim=1).view(-1).detach()   # (N,)
     nn_dist_i = (
         D_ij.min(dim=1).view(-1) < threshold**2
-    )  # If chain is not connected because of missing densities MaSIF cut out a part of the protein
+    )  
     
     query_labels = torch.take(labels,nn_i)
     query_labels=query_labels * nn_dist_i
@@ -299,7 +299,7 @@ def process(args, protein_pair, net):
     return P1, P2
 
 
-def generate_matchinglabels(args, P1, P2, threshold=4.0):
+def generate_matchinglabels(args, P1, P2, threshold=2):
     if P1.get("atom_center") is not None:
         xyz1_i = torch.matmul(P1["rand_rot"].T, P1["xyz"].T).T + P1["atom_center"]
     else:
