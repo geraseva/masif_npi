@@ -329,7 +329,7 @@ def compute_loss(args, P1, P2, n_points_sample=16, threshold=2):
         pos_descs2 = P2["embedding_2"][P2["labels"] == 1]
 
         pos_xyz_dists = (
-            ((pos_xyz1[:, None, :] - pos_xyz2[None, :, :]) ** 2).sum(-1)
+            ((LazyTensor(pos_xyz1[:, None, :]) - LazyTensor(pos_xyz2[None, :, :])) ** 2).sum(-1)
         )
         pos_desc_dists = torch.matmul(pos_descs1, pos_descs2.T)
 
