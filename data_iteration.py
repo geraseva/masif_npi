@@ -348,7 +348,7 @@ def compute_loss(args, P1, P2, n_points_sample=16, threshold=2):
         pos_descs2_2 = P2["embedding_1"][P2["labels"] == 1]
 
         pos_desc_dists2 = torch.matmul(pos_descs2_2, pos_descs1_2.T)
-        pos_preds2 = pos_desc_dists2[pos_xyz_dists.T < threshold]
+        pos_preds2 = pos_desc_dists2[pos_xyz_dists.T < threshold**2]
         pos_preds = torch.cat([pos_preds, pos_preds2], dim=0)
         pos_labels = torch.ones_like(pos_preds)
 
