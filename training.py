@@ -106,6 +106,9 @@ train_nsamples = train_nsamples - val_nsamples
 train_dataset, val_dataset = random_split(
     full_dataset, [train_nsamples, val_nsamples]
 )
+print('Train nsamples:',train_nsamples)
+print('Val nsamples:',val_nsamples)
+print('Test nsamples:',len(test_dataset))
 
  
 # PyTorch_geometric data loaders:
