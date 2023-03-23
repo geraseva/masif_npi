@@ -343,20 +343,21 @@ def compute_loss(args, P1, P2, n_points_sample=16, threshold=2):
         neg_preds = torch.matmul(pos_descs1, sample_desc2.T).view(-1)
         neg_labels = torch.zeros_like(neg_preds)
 
-        # For symmetry
-        pos_descs1_2 = P1["embedding_2"][P1["labels"] == 1]
-        pos_descs2_2 = P2["embedding_1"][P2["labels"] == 1]
+        if args.dataset!='NpiDataset':
+            pos_descs1_2 = P1["embedding_2"][P1["labels"] == 1]
+            pos_descs2_2 = P2["embedding_1"][P2["labels"] == 1]
 
-        pos_desc_dists2 = torch.matmul(pos_descs2_2, pos_descs1_2.T)
-        pos_preds2 = pos_desc_dists2[pos_xyz_dists.T < threshold**2]
-        pos_preds = torch.cat([pos_preds, pos_preds2], dim=0)
+            pos_desc_dists2 = torch.matmul(pos_descs2_2, pos_descs1_2.T)
+            pos_preds2 = pos_desc_dists2[pos_xyz_dists.T < threshold**2]
+            pos_preds = torch.cat([pos_preds, pos_preds2], dim=0)
+    
+            sample_desc1_2 = torch.randperm(len(P1["embedding_2"]))[:n_desc_sample]
+            sample_desc1_2 = P1["embedding_2"][sample_desc1_2]
+            neg_preds_2 = torch.matmul(pos_descs2_2, sample_desc1_2.T).view(-1)
+
+            neg_preds = torch.cat([neg_preds, neg_preds_2], dim=0)
+
         pos_labels = torch.ones_like(pos_preds)
-
-        sample_desc1_2 = torch.randperm(len(P1["embedding_2"]))[:n_desc_sample]
-        sample_desc1_2 = P1["embedding_2"][sample_desc1_2]
-        neg_preds_2 = torch.matmul(pos_descs2_2, sample_desc1_2.T).view(-1)
-
-        neg_preds = torch.cat([neg_preds, neg_preds_2], dim=0)
         neg_labels = torch.zeros_like(neg_preds)
 
     else:
