@@ -268,7 +268,7 @@ def process(args, protein_pair, net):
             P1['normals']=torch.matmul(R1.T, P1['normals'].T).T.contiguous()
         else:
             net.preprocess_surface(P1)
-    if P1["mesh_labels"] is not None:
+    if P1["mesh_labels"] is not None and args.site:
         project_iface_labels(P1)
     elif args.single_protein:
         P2 = process_single(protein_pair, chain_idx=2)
@@ -290,7 +290,7 @@ def process(args, protein_pair, net):
                 P2['normals']=torch.matmul(R2.T, P2['normals'].T).T.contiguous()
             else:
                 net.preprocess_surface(P2)         
-        if P2["mesh_labels"] is not None:
+        if P2["mesh_labels"] is not None and args.site:
             project_iface_labels(P2)
         elif not args.search:
             project_npi_labels(P2, P1, threshold=5.0)
@@ -300,7 +300,7 @@ def process(args, protein_pair, net):
     return P1, P2
 
 
-def generate_matchinglabels(args, P1, P2, threshold=2):
+def generate_matchinglabels(args, P1, P2):
     if P1.get("atom_center") is not None:
         xyz1_i = torch.matmul(P1["rand_rot"].T, P1["xyz"].T).T + P1["atom_center"]
     else:
@@ -313,7 +313,7 @@ def generate_matchinglabels(args, P1, P2, threshold=2):
     xyz2_j = LazyTensor(xyz2_j[None, :, :].contiguous())
 
     xyz_dists = ((xyz1_i - xyz2_j) ** 2).sum(-1)
-    xyz_dists = (threshold**2 - xyz_dists).step()
+    xyz_dists = (args.threshold**2 - xyz_dists).step()
     p1_iface_labels = (xyz_dists.sum(1) > 1.0).float().view(-1)
     p2_iface_labels = (xyz_dists.sum(0) > 1.0).float().view(-1)
 
@@ -321,7 +321,7 @@ def generate_matchinglabels(args, P1, P2, threshold=2):
     P2["labels"] = p2_iface_labels
 
 
-def compute_loss(args, P1, P2, n_points_sample=16, threshold=2):
+def compute_loss(args, P1, P2, n_points_sample=16):
 
     if args.search:
         pos_xyz1 = P1["xyz"][P1["labels"] == 1]
@@ -334,7 +334,7 @@ def compute_loss(args, P1, P2, n_points_sample=16, threshold=2):
         )
         pos_desc_dists = torch.matmul(pos_descs1, pos_descs2.T)
 
-        pos_preds = pos_desc_dists[pos_xyz_dists < threshold**2]
+        pos_preds = pos_desc_dists[pos_xyz_dists < args.threshold**2]
         pos_labels = torch.ones_like(pos_preds)
 
         n_desc_sample = 100
@@ -347,7 +347,7 @@ def compute_loss(args, P1, P2, n_points_sample=16, threshold=2):
         pos_descs2_2 = P2["embedding_1"][P2["labels"] == 1]
 
         pos_desc_dists2 = torch.matmul(pos_descs2_2, pos_descs1_2.T)
-        pos_preds2 = pos_desc_dists2[pos_xyz_dists.T < threshold**2]
+        pos_preds2 = pos_desc_dists2[pos_xyz_dists.T < args.threshold**2]
         pos_preds = torch.cat([pos_preds, pos_preds2], dim=0)
     
         sample_desc1_2 = torch.randperm(len(P1["embedding_2"]))[:n_desc_sample]

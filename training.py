@@ -76,11 +76,13 @@ elif args.npi:
 elif args.search:
     prefix='search_'
     la={'-':1 }
-    aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "P": 5, '-': -1 }
+    if args.dataset=='NpiDataset':
+        aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "P": 5, '-': -1 }
 
 args.aa=aa
 # Load the train dataset:
 if args.dataset=='NpiDataset':
+    args.threshold=2
     full_dataset = NpiDataset('npi_dataset', train_dataset, 
             transform=transformations, pre_transform=SurfacePrecompute(net, args), 
             la=la, aa=aa, prefix=prefix, pre_filter=iface_valid_filter
@@ -91,6 +93,7 @@ if args.dataset=='NpiDataset':
         )
 
 elif args.dataset=='ProteinPairsSurfaces':
+    args.threshold=1
     full_dataset = ProteinPairsSurfaces(
         "surface_data", ppi=args.search, train=True, transform=transformations, 
         pre_transform=SurfacePrecompute(net, args), pre_filter=iface_valid_filter
