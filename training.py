@@ -187,11 +187,11 @@ for i in range(starting_epoch, args.n_epochs):
                 "Distance/Negatives",
                 "Matching ROC-AUC",
             ]:
-                print(key ,suffix , i, np.mean(val))
+                print(key ,suffix , i, np.nanmean(val))
 
 
         if dataset_type == "Validation":  # Store validation loss for saving the model
-            val_loss = np.mean(info["Loss"])
+            val_loss = np.nanmean(info["Loss"])
         
 
     if True:  # Additional saves
