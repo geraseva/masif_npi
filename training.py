@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import random_split
 from torch_geometric.loader import DataLoader
 from torch_geometric.transforms import Compose
+from lion_pytorch import Lion
 from pathlib import Path
 import json
 
@@ -122,7 +123,8 @@ test_loader = DataLoader(test_dataset, batch_size=1, follow_batch=batch_vars)
 
 
 # Baseline optimizer:
-optimizer = torch.optim.Adam(net.parameters(), lr=3e-4, amsgrad=True)
+#optimizer = torch.optim.Adam(net.parameters(), lr=3e-4, amsgrad=True)
+optimizer = Lion(net.parameters(), lr=1e-4)
 best_loss = 1e10  # We save the "best model so far"
 
 starting_epoch = 0
