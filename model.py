@@ -12,7 +12,7 @@ from geometry_processing import (
     tangent_vectors,
     atoms_to_points_normals,
 )
-from helper import soft_dimension, diagonal_ranges
+from helper import *
 from benchmark_models import dMaSIFConv_seg
 
 torch.autograd.set_detect_anomaly(False)
@@ -539,7 +539,7 @@ class dMaSIF(nn.Module):
         features = self.dropout(self.features(P))
         P["input_features"] = features
         
-        torch.cuda.synchronize() 
+        synchronize() 
         begin = time.time()
 
         # Ours:
@@ -563,7 +563,7 @@ class dMaSIF(nn.Module):
 
 
         end = time.time()
-        torch.cuda.synchronize()
+        synchronize()
         memory_usage = torch.cuda.max_memory_allocated()
         conv_time = end - begin
 

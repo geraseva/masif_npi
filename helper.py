@@ -8,9 +8,11 @@ from pykeops.torch import LazyTensor
 from plyfile import PlyData, PlyElement
 from pathlib import Path
 
-
+def pass_function():
+    pass 
 tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 inttensor = torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor
+synchronize = torch.cuda.synchronize if torch.cuda.is_available() else pass_function
 numpy = lambda x: x.detach().cpu().numpy()
 
 

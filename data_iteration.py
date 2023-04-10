@@ -10,7 +10,6 @@ import math
 from tqdm import tqdm
 from scipy.spatial.transform import Rotation
 from geometry_processing import save_vtk
-from helper import numpy, diagonal_ranges
 import time
 import gc
 import warnings 
@@ -457,23 +456,23 @@ def iterate(
             optimizer.zero_grad()
 
         # Generate the surface:
-        torch.cuda.synchronize()
+        synchronize()
         surface_time = time.time()
         P1_batch, P2_batch = process(args, protein_pair, net)
-        torch.cuda.synchronize()
+        synchronize()
         surface_time = time.time() - surface_time
 
         for protein_it in range(protein_batch_size):
-            torch.cuda.synchronize()
+            synchronize()
             iteration_time = time.time()
 
             P1 = extract_single(P1_batch, protein_it)
             P2 = None if args.single_protein else extract_single(P2_batch, protein_it)
 
-            torch.cuda.synchronize()
+            synchronize()
             prediction_time = time.time()
             outputs = net(P1, P2)
-            torch.cuda.synchronize()
+            synchronize()
             prediction_time = time.time() - prediction_time
 
             P1 = outputs["P1"]
@@ -491,11 +490,11 @@ def iterate(
 
             # Compute the gradient, update the model weights:
             if not test:
-                torch.cuda.synchronize()
+                synchronize()
                 back_time = time.time()
                 loss.backward()
                 optimizer.step()
-                torch.cuda.synchronize()
+                synchronize()
                 back_time = time.time() - back_time
 
             if save_path is not None:
@@ -536,7 +535,7 @@ def iterate(
                     # Merge the "R_values" dict into "info", with a prefix:
                     **{"R_values/" + k: v for k, v in R_values.items()}                )
             )
-            torch.cuda.synchronize()
+            synchronize()
             iteration_time = time.time() - iteration_time
 
 
