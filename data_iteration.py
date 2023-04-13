@@ -191,14 +191,13 @@ def save_protein_batch_single(protein_pair_id, P, save_path, pdb_idx):
             predictions = torch.sigmoid(P["iface_preds"])
         else: 
             predictions = F.softmax(P["iface_preds"], dim=1)
-
-        if predictions.shape[1]==1:
-            labels = P["labels"].unsqueeze(dim=1) if P["labels"] is not None else 0.0 * predictions
-        else:
-            labels = F.one_hot(P["labels"],predictions.shape[1]) if P["labels"] is not None else 0.0 * predictions
     else:
-        predictions=torch.zeros((xyz.shape[0],0))
-        labels=torch.zeros_like(predictions)
+        predictions=torch.zeros((xyz.shape[0],1))
+
+    if predictions.shape[1]==1:
+        labels = P["labels"].unsqueeze(dim=1) if P["labels"] is not None else 0.0 * predictions
+    else:
+        labels = F.one_hot(P["labels"],predictions.shape[1]) if P["labels"] is not None else 0.0 * predictions    
     
     coloring = torch.cat([inputs, embedding, predictions, labels], axis=1)
 
