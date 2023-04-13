@@ -27,11 +27,6 @@ print('Arguments:',args)
 model_path = "models/" + args.experiment_name
 torch.cuda.set_device(args.device)
 
-if not Path("models/").exists():
-    Path("models/").mkdir(exist_ok=False)
-
-with open(model_path + '_args.json', 'w') as f:
-    json.dump(args.__dict__, f, indent=2)
 
 # Ensure reproducibility:
 torch.backends.cudnn.benchmark = True
@@ -151,7 +146,11 @@ elif args.transfer_learning != "":
     
     del net1
 
+if not Path("models/").exists():
+    Path("models/").mkdir(exist_ok=False)
 
+with open(model_path + '_args.json', 'w') as f:
+    json.dump(args.__dict__, f, indent=2)
 
 # Training loop (~100 times) over the dataset:
 gc.collect()

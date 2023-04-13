@@ -179,8 +179,6 @@ def save_protein_batch_single(protein_pair_id, P, save_path, pdb_idx):
     protein_pair_id = protein_pair_id.split("_")
     pdb_id = protein_pair_id[0] + "_" + protein_pair_id[pdb_idx]
 
-    batch = P["batch"]
-
     xyz = P["xyz"]
 
     inputs = P["input_features"]
@@ -194,15 +192,14 @@ def save_protein_batch_single(protein_pair_id, P, save_path, pdb_idx):
         else: 
             predictions = F.softmax(P["iface_preds"], dim=1)
 
+        if predictions.shape[1]==1:
+            labels = P["labels"].unsqueeze(dim=1) if P["labels"] is not None else 0.0 * predictions
+        else:
+            labels = F.one_hot(P["labels"],predictions.shape[1]) if P["labels"] is not None else 0.0 * predictions
     else:
-        0.0*embedding[:,0].view(-1, 1)
-
-    if predictions.shape[1]==1:
-        labels = P["labels"].unsqueeze(dim=1) if P["labels"] is not None else 0.0 * predictions
-    else:
-        labels = F.one_hot(P["labels"],predictions.shape[1]) if P["labels"] is not None else 0.0 * predictions
-
-
+        predictions=torch.zeros((xyz.shape[0],0))
+        labels=torch.zeros_like(predictions)
+    
     coloring = torch.cat([inputs, embedding, predictions, labels], axis=1)
 
     np.save(str(save_path / pdb_id) + "_predcoords", numpy(xyz))
