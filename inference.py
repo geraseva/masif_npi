@@ -14,7 +14,6 @@ from data import PairData, CenterPairAtoms, load_protein_pair
 from data import RandomRotationPairAtoms
 from model import dMaSIF
 from data_iteration import iterate
-from helper import *
 from Arguments import parser
 
 args = parser.parse_args()
@@ -41,18 +40,27 @@ transformations = (
     if args.random_rotation
     else None
 )
+if args.na=='DNA':
+    la={'DA':1, "DG": 2, "DC":3, "DT":4, '-':0 }
+elif args.na=='RNA':
+    la={'A':1, "G": 2, "C":3, "U":4, '-':0 }
+elif args.na=='NA':
+    la={'DA':1, "DG": 2, "DC":3, "DT":4, 'A':1, "G": 2, "C":3, "U":4, '-':0 }
+
+aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5 }
 if args.site:
     la={'-':1 }
-else:
-    la={'DA':1, "DG": 2, "DC":3, "DT":4, 'A':1, "G": 2, "C":3, "U":4,'-':0 }
-
-aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5}
-
+elif args.search:
+    la={'-':1 }
+    if args.dataset=='NpiDataset':
+        aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "P": 5, '-': -1 }
+args.aa=aa
 
 if args.dataset=='NpiDataset':
     single_data_dir = "./npi_dataset/raw"
 elif args.dataset=='ProteinPairsSurfaces':
     single_data_dir = "./surface_data/raw/01-benchmark_surfaces_npy"
+    args.aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, 'Se':4, "SE": 4, "-": 5 }
 
 
 if single_pdb != "":
