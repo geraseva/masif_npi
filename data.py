@@ -145,7 +145,7 @@ def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, atom_enco
         d=atom_encoder.get('-')
         if d==None:
             d=0
-        atom_types_enc=np.array([atom_encoder.get(a, d) for a in atom_types])
+        atom_types_enc=np.array([atom_encoder.get(a[0], d) for a in atom_types])
         mask=mask&(atom_types_enc>=0)
         atom_types=inttensor(atom_types_enc*mask)
         atom_types=F.one_hot(atom_types,num_classes=max(atom_encoder.values())+1).float()
@@ -160,13 +160,12 @@ def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, atom_enco
             atom_res=np.load(data_dir+'/'+(pdb_id + "_resnames.npy"))
         except FileNotFoundError:
             atom_res=np.array([])
-        atom_res_enc=np.array([label_encoder.get(a[0], d) for a in atom_res])
+        atom_res_enc=np.array([label_encoder.get(a, d) for a in atom_res])
         mask=mask&(atom_res_enc>=0)
         atom_res=inttensor(atom_res_enc*mask)
         atom_res=atom_res[mask]
     else:
         atom_res=None
-
     atom_types=atom_types[mask]
     try:
         atom_coords = tensor(np.load(data_dir+'/'+(pdb_id + "_atomxyz.npy")))[mask]
