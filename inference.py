@@ -59,9 +59,9 @@ if args.dataset=='NpiDataset':
     single_data_dir = "./npi_dataset/raw"
 elif args.dataset=='ProteinPairsSurfaces':
     single_data_dir = "./surface_data/raw/01-benchmark_surfaces_npy"
-    aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, 'Se':4, "SE": 4, "-": 5 }
+    aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, 'Se':4, "-": 5 }
     la=None
-    
+
 args.aa=aa
 
 if single_pdb != "":

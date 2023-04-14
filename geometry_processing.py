@@ -151,7 +151,7 @@ def soft_distances(x, y, batch_x, batch_y, smoothness=0.01, atomtypes=None, aa=N
         Tensor: (M,) values of the soft distance function on the points `y`.
     """
 
-    atomic_dict={'H': 110, 'C': 170, 'N': 155, 'O': 152, 'P': 180, 'S': 180, 'Se': 190}
+    atomic_dict={'H': 110, 'C': 170, 'N': 155, 'O': 152, 'P': 180, 'S': 180, 'Se': 190, 'SE': 190, '-': 200}
     # Build the (N, M, 1) symbolic matrix of squared distances:
     x_i = LazyTensor(x[:, None, :])  # (N, 1, 3) atoms
     y_j = LazyTensor(y[None, :, :])  # (1, M, 3) sampling points
