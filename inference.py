@@ -75,7 +75,6 @@ elif pdb_list != "":
 else:
     raise Error
 
-
 # PyTorch geometric expects an explicit list of "batched variables":
 batch_vars = ["xyz_p1", "xyz_p2", "atom_coords_p1", "atom_coords_p2"]
 test_loader = DataLoader(
@@ -106,7 +105,7 @@ info = iterate(
 
 info['indexes']=test_pdb_ids
 
-print('Mean roc-auc:',np.mean(info["ROC-AUC"]),'std roc-auc:',np.std(info["ROC-AUC"]))
+print('Mean roc-auc:',np.nanmean(info["ROC-AUC"]),'std roc-auc:',np.nanstd(info["ROC-AUC"]))
 
 for i, pdb in enumerate(info['indexes']):
     print(f"{pdb}: roc-auc {info['ROC-AUC'][i]} Loss {info['Loss'][i]}")

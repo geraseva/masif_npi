@@ -499,17 +499,6 @@ class dMaSIF(nn.Module):
 
     def features(self, P, i=1):
         """Estimates geometric and chemical features from a protein surface or a cloud of atoms."""
-        if (
-            not self.args.use_mesh and "xyz" not in P
-        ):  # Compute the pseudo-surface directly from the atoms
-            # (Note that we use the fact that dicts are "passed by reference" here)
-            P["xyz"], P["normals"], P["batch"] = atoms_to_points_normals(
-                P["atoms"],
-                P["batch_atoms"],
-                atomtypes=P["atomtypes"],
-                resolution=self.args.resolution,
-                sup_sampling=self.args.sup_sampling,
-            )
 
         # Estimate the curvatures using the triangles or the estimated normals:
         P_curvatures = curvatures(
@@ -582,7 +571,12 @@ class dMaSIF(nn.Module):
 
     def forward(self, P1, P2=None):
         # Compute embeddings of the point clouds:
+        if (not self.args.use_mesh and "xyz" not in P1):
+            self.preprocess_surface(self, P1)
+
         if P2 is not None:
+            if (not self.args.use_mesh and "xyz" not in P2):
+                self.preprocess_surface(self, P2)
             P1P2 = combine_pair(P1, P2)
         else:
             P1P2 = P1
