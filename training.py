@@ -1,13 +1,13 @@
-
 # Standard imports:
 import numpy as np
 import torch
+import json
+import os, sys
 from torch.utils.data import random_split
 from torch_geometric.loader import DataLoader
 from torch_geometric.transforms import Compose
 from lion_pytorch import Lion
 from pathlib import Path
-import json
 
 # Custom data loader and model:
 from data import NpiDataset, PairData, CenterPairAtoms, ProteinPairsSurfaces
@@ -15,89 +15,75 @@ from data import RandomRotationPairAtoms
 from model import dMaSIF
 from data_iteration import iterate, iface_valid_filter, SurfacePrecompute
 from helper import *
-from Arguments import parser
-import pickle
+from Arguments import parse_train
 import gc
+import warnings
+warnings.filterwarnings("ignore")
 
 # Parse the arguments, prepare the TensorBoard writer:
-args = parser.parse_args()
+args, net_args = parse_train()
 
 print('Start training')
 print('Arguments:',args)
-model_path = "models/" + args.experiment_name
-torch.cuda.set_device(args.device)
-
+print('Model arguments:',net_args)
 
 # Ensure reproducibility:
 torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.deterministic = True
 torch.manual_seed(args.seed)
-torch.cuda.manual_seed_all(args.seed)
 np.random.seed(args.seed)
 
-# Create the model, with a warm restart if applicable:
-net = dMaSIF(args)
-net = net.to(args.device)
+if args.device!='cpu':
+    torch.cuda.set_device(args.device)
+    torch.cuda.manual_seed_all(args.seed)
+    torch.set_num_threads(4)
 
-# We load the train and test datasets.
-# Random transforms, to ensure that no network/baseline overfits on pose parameters:
+
+batch_vars = ["xyz_p1", "xyz_p2", "atom_coords_p1", "atom_coords_p2"]
+model_path = "models/" + args.experiment_name
 transformations = (
     Compose([CenterPairAtoms(), RandomRotationPairAtoms()])
     if args.random_rotation
     else None
 )
+    
+net = dMaSIF(net_args)
+net = net.to(args.device)
 
-# PyTorch geometric expects an explicit list of "batched variables":
-batch_vars = ["xyz_p1", "xyz_p2", "atom_coords_p1", "atom_coords_p2"]
-
-if args.na=='DNA':
-    train_dataset="lists/training_dna.txt"
-    test_dataset="lists/testing_dna.txt"
-    la={'DA':1, "DG": 2, "DC":3, "DT":4, '-':0 }
-elif args.na=='RNA':
-    train_dataset="lists/training_rna.txt"
-    test_dataset="lists/testing_rna.txt"
-    la={'A':1, "G": 2, "C":3, "U":4, '-':0 }
-elif args.na=='NA':
-    train_dataset="lists/training_npi.txt"
-    test_dataset="lists/testing_npi.txt"
-    la={'DA':1, "DG": 2, "DC":3, "DT":4, 'A':1, "G": 2, "C":3, "U":4, '-':0 }
-
-aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "-": 5 }
-if args.site:
-    la={'-':1 }
-    prefix='site_'
-elif args.npi:
-    prefix='npi_'
-elif args.search:
-    prefix='search_'
-    la={'-':1 }
-    if args.dataset=='NpiDataset':
-        aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "P": 5, '-': -1 }
-
-args.aa=aa
-# Load the train dataset:
-if args.dataset=='NpiDataset':
-    args.threshold=2
-    full_dataset = NpiDataset('npi_dataset', train_dataset, 
-            transform=transformations, pre_transform=SurfacePrecompute(net, args), 
-            la=la, aa=aa, prefix=prefix, pre_filter=iface_valid_filter
-        )
-    test_dataset = NpiDataset('npi_dataset', test_dataset, 
-            transform=transformations, pre_transform=SurfacePrecompute(net, args), 
-            la=la, aa=aa, prefix=prefix, pre_filter=iface_valid_filter
-        )
-
-elif args.dataset=='ProteinPairsSurfaces':
-    args.threshold=1
+if args.na=='protein':
     full_dataset = ProteinPairsSurfaces(
         "surface_data", ppi=args.search, train=True, transform=transformations, 
-        pre_transform=SurfacePrecompute(net, args), pre_filter=iface_valid_filter
-    )
+        pre_transform=SurfacePrecompute(net, args), pre_filter=iface_valid_filter,
+        aa=args.aa)
     test_dataset = ProteinPairsSurfaces(
         "surface_data", ppi=args.search, train=False, transform=transformations,
-        pre_transform=SurfacePrecompute(net, args), pre_filter=iface_valid_filter
-    )
+        pre_transform=SurfacePrecompute(net, args), pre_filter=iface_valid_filter,
+        aa=args.aa)
+else:
+    if args.na=='DNA':
+        train_dataset="lists/training_dna.txt"
+        test_dataset="lists/testing_dna.txt"
+    elif args.na=='RNA':
+        train_dataset="lists/training_rna.txt"
+        test_dataset="lists/testing_rna.txt"
+    elif args.na=='NA':
+        train_dataset="lists/training_npi.txt"
+        test_dataset="lists/testing_npi.txt"
+    
+    if args.site:
+        prefix=f'site_{args.na.lower()}_'
+    elif args.npi:
+        prefix=f'npi_{args.na.lower()}_'
+    elif args.search:
+        prefix=f'search_{args.na.lower()}_'
+
+    full_dataset = NpiDataset('npi_dataset', train_dataset, 
+            transform=transformations, pre_transform=SurfacePrecompute(net, args), 
+            la=args.la, aa=args.aa, prefix=prefix, pre_filter=iface_valid_filter)
+    test_dataset = NpiDataset('npi_dataset', test_dataset, 
+            transform=transformations, pre_transform=SurfacePrecompute(net, args), 
+            la=args.la, aa=args.aa, prefix=prefix, pre_filter=iface_valid_filter)
+
 # Train/Validation split:
 train_nsamples = len(full_dataset)
 val_nsamples = int(train_nsamples * args.validation_fraction)
@@ -116,41 +102,35 @@ train_loader = DataLoader(
 val_loader = DataLoader(val_dataset, batch_size=1, follow_batch=batch_vars)
 test_loader = DataLoader(test_dataset, batch_size=1, follow_batch=batch_vars)
 
+# Create the model, with a warm restart if applicable:
 
-# Baseline optimizer:
 #optimizer = torch.optim.Adam(net.parameters(), lr=3e-4, amsgrad=True)
 optimizer = Lion(net.parameters(), lr=1e-4)
-best_loss = 1e10  # We save the "best model so far"
+best_loss = 1e10 
 
 starting_epoch = 0
 if args.restart_training != "":
     checkpoint = torch.load("models/" + args.restart_training, map_location=args.device)
     net.load_state_dict(checkpoint["model_state_dict"])
     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-    starting_epoch = checkpoint["epoch"]
+    starting_epoch = checkpoint["epoch"]+1
     best_loss = checkpoint["best_loss"]
 
 elif args.transfer_learning != "":
-    task=args.transfer_learning[:args.transfer_learning.index('_epoch')]
-    args1 = parser.parse_args()
-    with open("models/" + task+'_args.json', 'r') as f:
-        args1.__dict__ = json.load(f)
-    net1 = dMaSIF(args1)
-    net1 = net1.to(args.device)
     checkpoint = torch.load("models/" + args.transfer_learning, map_location=args.device)
-    net1.load_state_dict(checkpoint["model_state_dict"])
-    try:
-        net.atomnet.load_state_dict(net1.atomnet.state_dict())
-    except:
-        pass 
-    
-    del net1
+    for module in checkpoint["model_state_dict"]:
+        try:
+            net[module].load_state_dict(checkpoint["model_state_dict"][module])
+            print('Loaded precomputed module',module)
+        except:
+            pass 
+
 
 if not Path("models/").exists():
     Path("models/").mkdir(exist_ok=False)
 
 with open(model_path + '_args.json', 'w') as f:
-    json.dump(args.__dict__, f, indent=2)
+    json.dump(net_args.__dict__, f, indent=2)
 
 # Training loop (~100 times) over the dataset:
 gc.collect()

@@ -234,18 +234,21 @@ def project_npi_labels(P1, P2, threshold=5.0):
     batch_source = P2["batch_atoms"]
     labels = P2["atomres"]
 
-    x_i = LazyTensor(queries[:, None, :])  # (N, 1, D)
-    y_j = LazyTensor(source[None, :, :])  # (1, M, D)
-
-    D_ij = ((x_i - y_j) ** 2).sum(-1)  # (N, M)
-    D_ij.ranges = diagonal_ranges(batch_queries, batch_source)
-    nn_i = D_ij.argmin(dim=1).view(-1).detach()   # (N,)
-    nn_dist_i = (
-        D_ij.min(dim=1).view(-1) < threshold**2
-    )  
+    if source.shape[0]==0:
+        query_labels=torch.zeros(P1["xyz"].shape[0])
+    else:
+        x_i = LazyTensor(queries[:, None, :])  # (N, 1, D)
+        y_j = LazyTensor(source[None, :, :])  # (1, M, D)
     
-    query_labels = torch.take(labels,nn_i)
-    query_labels=query_labels * nn_dist_i
+        D_ij = ((x_i - y_j) ** 2).sum(-1)  # (N, M)
+        D_ij.ranges = diagonal_ranges(batch_queries, batch_source)
+        nn_i = D_ij.argmin(dim=1).view(-1).detach()   # (N,)
+        nn_dist_i = (
+            D_ij.min(dim=1).view(-1) < threshold**2
+        )  
+    
+        query_labels = torch.take(labels,nn_i)
+        query_labels=query_labels * nn_dist_i
 
     P1["labels"] = query_labels.detach()
 
@@ -267,10 +270,7 @@ def process(args, protein_pair, net):
         project_iface_labels(P1)
     elif args.single_protein:
         P2 = process_single(protein_pair, chain_idx=2)
-        if P2['atom_xyz'].shape[0]==0:
-            P1["labels"] = torch.zeros(P1["xyz"].shape[0]).to(args.device)
-        else:
-            project_npi_labels(P1, P2, threshold=5.0)
+        project_npi_labels(P1, P2, threshold=args.threshold)
     P2 = None
     if not args.single_protein:
         P2 = process_single(protein_pair, chain_idx=2)
@@ -288,7 +288,8 @@ def process(args, protein_pair, net):
         if P2["mesh_labels"] is not None and args.site:
             project_iface_labels(P2)
         elif not args.search:
-            project_npi_labels(P2, P1, threshold=5.0)
+            project_npi_labels(P1, P2, threshold=args.threshold)
+            project_npi_labels(P2, P1, threshold=args.threshold)
         else:
             generate_matchinglabels(args, P1, P2)
 
@@ -316,7 +317,7 @@ def generate_matchinglabels(args, P1, P2):
     P2["labels"] = p2_iface_labels
 
 
-def compute_loss(args, P1, P2, n_points_sample=16):
+def compute_loss(args, P1, P2):
 
     if args.search:
         pos_xyz1 = P1["xyz"][P1["labels"] == 1]
@@ -332,7 +333,7 @@ def compute_loss(args, P1, P2, n_points_sample=16):
         pos_preds = pos_desc_dists[pos_xyz_dists < args.threshold**2]
         pos_labels = torch.ones_like(pos_preds)
 
-        n_desc_sample = 100
+        n_desc_sample = pos_labels.shape[0]//pos_descs1.shape[0]
         sample_desc2 = torch.randperm(len(P2["embedding_2"]))[:n_desc_sample]
         sample_desc2 = P2["embedding_2"][sample_desc2]
         neg_preds = torch.matmul(pos_descs1, sample_desc2.T).view(-1)
@@ -344,6 +345,8 @@ def compute_loss(args, P1, P2, n_points_sample=16):
         pos_desc_dists2 = torch.matmul(pos_descs2_2, pos_descs1_2.T)
         pos_preds2 = pos_desc_dists2[pos_xyz_dists.T < args.threshold**2]
         pos_preds = torch.cat([pos_preds, pos_preds2], dim=0)
+
+        n_desc_sample = pos_preds2.shape[0]//pos_descs2_2.shape[0]
     
         sample_desc1_2 = torch.randperm(len(P1["embedding_2"]))[:n_desc_sample]
         sample_desc1_2 = P1["embedding_2"][sample_desc1_2]
@@ -439,6 +442,8 @@ def iterate(
     for it, protein_pair in enumerate(
         tqdm(dataset)
     ):  # , desc="Test " if test else "Train")):
+        if protein_pair.atom_coords_p1_batch.shape[0]==0:
+            continue
         protein_batch_size = protein_pair.atom_coords_p1_batch[-1].item() + 1
         if save_path is not None:
             batch_ids = pdb_ids[

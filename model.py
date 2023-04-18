@@ -431,8 +431,6 @@ class dMaSIF(nn.Module):
         E = args.emb_dims
         H = args.post_units
         C = args.n_outputs
-        if args.site:
-            C=1
 
         # Computes chemical features
         if args.feature_generation=='AtomNet':
@@ -463,7 +461,7 @@ class dMaSIF(nn.Module):
             )
 
             # Asymmetric embedding
-        if args.search:
+        if args.split:
             self.orientation_scores2 = nn.Sequential(
                     nn.Linear(I, O),
                     nn.LeakyReLU(negative_slope=0.2),
@@ -478,16 +476,7 @@ class dMaSIF(nn.Module):
                     radius=args.radius,
                 )
 
-        if args.site:
-            # Post-processing, without batch norm:
-            self.net_out = nn.Sequential(
-                nn.Linear(E, H),
-                nn.LeakyReLU(negative_slope=0.2),
-                nn.Linear(H, H),
-                nn.LeakyReLU(negative_slope=0.2),
-                nn.Linear(H, 1),
-            )
-        if args.npi:
+        if C>0:
             # Post-processing, without batch norm:
             self.net_out = nn.Sequential(
                 nn.Linear(E, H),
@@ -497,14 +486,15 @@ class dMaSIF(nn.Module):
                 nn.Linear(H, C),
             )
 
+
     def features(self, P, i=1):
         """Estimates geometric and chemical features from a protein surface or a cloud of atoms."""
 
         # Estimate the curvatures using the triangles or the estimated normals:
         P_curvatures = curvatures(
             P["xyz"],
-            triangles=P["triangles"] if self.args.use_mesh else None,
-            normals=None if self.args.use_mesh else P["normals"],
+            triangles=None,
+            normals= P["normals"],
             scales=self.curvature_scales,
             batch=P["batch"],
         )
@@ -513,11 +503,6 @@ class dMaSIF(nn.Module):
         chemfeats = self.atomnet(
             P["xyz"], P["atom_xyz"], P["atomtypes"], P["batch"], P["batch_atoms"]
         )
-
-        if self.args.no_chem:
-            chemfeats = 0.0 * chemfeats
-        if self.args.no_geom:
-            P_curvatures = 0.0 * P_curvatures
 
         # Concatenate our features:
         return torch.cat([P_curvatures, chemfeats], dim=1).contiguous()
@@ -534,17 +519,17 @@ class dMaSIF(nn.Module):
         # Ours:
         self.conv.load_mesh(
                 P["xyz"],
-                triangles=P["triangles"] if self.args.use_mesh else None,
-                normals=None if self.args.use_mesh else P["normals"],
+                triangles=None,
+                normals=P["normals"],
                 weights=self.orientation_scores(features),
                 batch=P["batch"],
             )
         P["embedding_1"] = self.conv(features)
-        if self.args.search:
+        if self.args.split:
             self.conv2.load_mesh(
                     P["xyz"],
-                    triangles=P["triangles"] if self.args.use_mesh else None,
-                    normals=None if self.args.use_mesh else P["normals"],
+                    triangles=None,
+                    normals=P["normals"],
                     weights=self.orientation_scores2(features),
                     batch=P["batch"],
                 )
@@ -571,11 +556,11 @@ class dMaSIF(nn.Module):
 
     def forward(self, P1, P2=None):
         # Compute embeddings of the point clouds:
-        if (not self.args.use_mesh and "xyz" not in P1):
+        if ("xyz" not in P1):
             self.preprocess_surface(self, P1)
 
         if P2 is not None:
-            if (not self.args.use_mesh and "xyz" not in P2):
+            if ("xyz" not in P2):
                 self.preprocess_surface(self, P2)
             P1P2 = combine_pair(P1, P2)
         else:
@@ -588,9 +573,7 @@ class dMaSIF(nn.Module):
         R_values["input"] = soft_dimension(P1P2["input_features"])
         R_values["conv"] = soft_dimension(P1P2["embedding_1"])
 
-        if self.args.site:
-            P1P2["iface_preds"] = self.net_out(P1P2["embedding_1"])
-        elif self.args.npi:
+        if self.args.n_outputs>0:
             P1P2["iface_preds"] = self.net_out(P1P2["embedding_1"])
 
         if P2 is not None:

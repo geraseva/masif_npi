@@ -317,9 +317,10 @@ def load_protein_pair(pdb_id, data_dir,single_pdb=False, aa=None, la=None):
 class ProteinPairsSurfaces(InMemoryDataset):
     url = ""
 
-    def __init__(self, root, ppi=False, train=True, transform=None, pre_transform=None, pre_filter=None):
+    def __init__(self, root, ppi=False, train=True, transform=None, pre_transform=None, pre_filter=None, 
+        aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, 'Se':4, "SE": 4, "-": 5 }):
         self.ppi = ppi
-        self.aa={"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, 'Se':4, "SE": 4, "-": 5 }
+        self.aa=aa
 
         super(ProteinPairsSurfaces, self).__init__(root, transform, pre_transform,pre_filter)
         path = self.processed_paths[0] if train else self.processed_paths[1]
