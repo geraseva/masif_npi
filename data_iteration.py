@@ -331,13 +331,12 @@ def compute_loss(args, P1, P2):
         pos_desc_dists = torch.matmul(pos_descs1, pos_descs2.T)
 
         pos_preds = pos_desc_dists[pos_xyz_dists < args.threshold**2]
-        pos_labels = torch.ones_like(pos_preds)
 
-        n_desc_sample = pos_labels.shape[0]//pos_descs1.shape[0]
+        n_desc_sample = pos_preds.shape[0]//max(pos_descs1.shape[0],1)+1
+
         sample_desc2 = torch.randperm(len(P2["embedding_2"]))[:n_desc_sample]
         sample_desc2 = P2["embedding_2"][sample_desc2]
         neg_preds = torch.matmul(pos_descs1, sample_desc2.T).view(-1)
-        neg_labels = torch.zeros_like(neg_preds)
 
         pos_descs1_2 = P1["embedding_2"][P1["labels"] == 1]
         pos_descs2_2 = P2["embedding_1"][P2["labels"] == 1]
@@ -346,8 +345,8 @@ def compute_loss(args, P1, P2):
         pos_preds2 = pos_desc_dists2[pos_xyz_dists.T < args.threshold**2]
         pos_preds = torch.cat([pos_preds, pos_preds2], dim=0)
 
-        n_desc_sample = pos_preds2.shape[0]//pos_descs2_2.shape[0]
-    
+        n_desc_sample = pos_preds2.shape[0]//max(pos_descs2_2.shape[0],1)+1
+
         sample_desc1_2 = torch.randperm(len(P1["embedding_2"]))[:n_desc_sample]
         sample_desc1_2 = P1["embedding_2"][sample_desc1_2]
         neg_preds_2 = torch.matmul(pos_descs2_2, sample_desc1_2.T).view(-1)
