@@ -135,12 +135,8 @@ class CenterPairAtoms(object):
 
 def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, atom_encoder=None,label_encoder=None):
 
-    try:
-        atom_types=np.load(data_dir+'/'+(pdb_id + "_atomtypes.npy"))
-    except FileNotFoundError:
-        atom_types=np.array([])
+    atom_types=np.load(data_dir+'/'+(pdb_id + "_atomtypes.npy"))
     mask=np.ones(atom_types.shape[0], dtype=bool) #create mask to exclude some atoms from computation
-
     if atom_encoder!=None:
         d=atom_encoder.get('-')
         if d==None:
@@ -151,26 +147,20 @@ def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, atom_enco
         atom_types=F.one_hot(atom_types,num_classes=max(atom_encoder.values())+1).float()
     else:
         atom_types=tensor(atom_types)
-
     if label_encoder!=None:
         d=label_encoder.get('-')
         if d==None:
             d=0
-        try:
-            atom_res=np.load(data_dir+'/'+(pdb_id + "_resnames.npy"))
-        except FileNotFoundError:
-            atom_res=np.array([])
-        atom_res_enc=np.array([label_encoder.get(a, d) for a in atom_res])
-        mask=mask&(atom_res_enc>=0)
-        atom_res=inttensor(atom_res_enc*mask)
-        atom_res=atom_res[mask]
+        atom_res=np.load(data_dir+'/'+(pdb_id + "_resnames.npy"))
+        else:
+            atom_res_enc=np.array([label_encoder.get(a, d) for a in atom_res])
+            mask=mask&(atom_res_enc>=0)
+            atom_res=inttensor(atom_res_enc*mask)
+            atom_res=atom_res[mask]
     else:
         atom_res=None
     atom_types=atom_types[mask]
-    try:
-        atom_coords = tensor(np.load(data_dir+'/'+(pdb_id + "_atomxyz.npy")))[mask]
-    except FileNotFoundError:
-        atom_coords=tensor(np.zeros((0,3)))[mask]
+    atom_coords = tensor(np.load(data_dir+'/'+(pdb_id + "_atomxyz.npy")))[mask]
 
     triangles = (
         None

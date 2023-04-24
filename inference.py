@@ -56,8 +56,15 @@ if args.single_pdb != "":
 elif args.pdb_list != "":
     with open(args.pdb_list) as f:
         pdb_l = f.read().splitlines()
-    test_dataset = [load_protein_pair(pdb, args.data_dir,single_pdb=True,la=args.la, aa=net_args.aa) for pdb in pdb_l]
-    test_pdb_ids = [pdb for pdb in pdb_l]
+        test_dataset=[]
+        test_pdb_ids=[]
+    for pdb in pdb_l:
+        try:
+            test_dataset.append(load_protein_pair(pdb, args.data_dir,single_pdb=True,la=args.la, aa=net_args.aa))
+        except:
+            pass
+        else:
+            test_pdb_ids.append(pdb)
 else:
     raise Error
 print('Test nsamples:',len(test_dataset))
