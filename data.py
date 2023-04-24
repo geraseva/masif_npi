@@ -152,11 +152,10 @@ def load_protein_npy(pdb_id, data_dir, center=False, single_pdb=False, atom_enco
         if d==None:
             d=0
         atom_res=np.load(data_dir+'/'+(pdb_id + "_resnames.npy"))
-        else:
-            atom_res_enc=np.array([label_encoder.get(a, d) for a in atom_res])
-            mask=mask&(atom_res_enc>=0)
-            atom_res=inttensor(atom_res_enc*mask)
-            atom_res=atom_res[mask]
+        atom_res_enc=np.array([label_encoder.get(a, d) for a in atom_res])
+        mask=mask&(atom_res_enc>=0)
+        atom_res=inttensor(atom_res_enc*mask)
+        atom_res=atom_res[mask]
     else:
         atom_res=None
 
