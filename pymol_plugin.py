@@ -94,10 +94,10 @@ def charge_color(charges):
 
 
 def load_npy(
-    filename, color="white", dotSize=0.2, in_channels=16, emb_dims=8, thr=0.5):
+    filename, emb_num=1, color="white", dotSize=0.2, in_channels=16, emb_dims=8, thr=0.5):
 
     verts=np.load(filename+"_predcoords.npy")
-    feats=np.load(filename+'_predfeatures_emb1.npy')
+    feats=np.load(f'{filename}_predfeatures_emb{emb_num}.npy')
 
 
     pdbid=filename.split('/')[-1]    
