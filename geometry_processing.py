@@ -3,11 +3,10 @@ from math import pi
 import torch
 from pykeops.torch import LazyTensor
 from plyfile import PlyData, PlyElement
-from helper import *
+from helper import diagonal_ranges
 import torch.nn as nn
 import torch.nn.functional as F
 
-# from matplotlib import pyplot as plt
 from pykeops.torch.cluster import grid_cluster, cluster_ranges_centroids, from_matrix
 from math import pi, sqrt
 
@@ -134,7 +133,7 @@ def subsample(x, batch=None, scale=1.0):
     return torch.cat(points, dim=0), torch.cat(batches, dim=0)
 
 
-def soft_distances(x, y, batch_x, batch_y, smoothness=0.01, atomtypes=None, aa=None):
+def soft_distances(x, y, batch_x, batch_y, smoothness=0.01, atom_rad=None):
     """Computes a soft distance function to the atom centers of a protein.
 
     Implements Eq. (1) of the paper in a fast and numerically stable way.
@@ -151,7 +150,7 @@ def soft_distances(x, y, batch_x, batch_y, smoothness=0.01, atomtypes=None, aa=N
         Tensor: (M,) values of the soft distance function on the points `y`.
     """
 
-    atomic_dict={'H': 110, 'C': 170, 'N': 155, 'O': 152, 'P': 180, 'S': 180, 'Se': 190, 'SE': 190, '-': 180}
+    
     # Build the (N, M, 1) symbolic matrix of squared distances:
     x_i = LazyTensor(x[:, None, :])  # (N, 1, 3) atoms
     y_j = LazyTensor(y[None, :, :])  # (1, M, 3) sampling points
@@ -160,26 +159,8 @@ def soft_distances(x, y, batch_x, batch_y, smoothness=0.01, atomtypes=None, aa=N
     # Use a block-diagonal sparsity mask to support heterogeneous batch processing:
     D_ij.ranges = diagonal_ranges(batch_x, batch_y)
 
-    if atomtypes is not None:
-        if aa is not None:
-            type_list=np.full(atomtypes.shape[-1],110)
-            for key in aa:
-                if aa[key]>0:
-                    type_list[aa[key]]=atomic_dict[key]
-        else:
-            type_list=[170, 110, 152, 155, 180, 190]
-        # Turn the one-hot encoding "atomtypes" into a vector of diameters "smoothness_i":
-        if x.device==torch.device('cpu'):
-            atomic_radii = torch.FloatTensor(type_list)
-            
-        else:
-            atomic_radii = torch.cuda.FloatTensor(type_list, device=x.device)
-        atomic_radii = atomic_radii / 110
-        atomtype_radii = atomtypes * atomic_radii[None, :]  # n_atoms, n_atomtypes
-        # smoothness = atomtypes @ atomic_radii  # (N, 6) @ (6,) = (N,)
-        smoothness = torch.sum(
-            smoothness * atomtype_radii, dim=1, keepdim=False
-        )  # n_atoms, 1
+    if atom_rad is not None:
+        smoothness = smoothness * atom_rad / 110
         smoothness_i = LazyTensor(smoothness[:, None, None])
 
         # Compute an estimation of the mean smoothness in a neighborhood
@@ -219,10 +200,9 @@ def atoms_to_points_normals(
     smoothness=0.5,
     resolution=1.0,
     nits=4,
-    atomtypes=None,
+    atom_rad=None,
     sup_sampling=20,
     variance=0.1,
-    aa=None
 ):
     """Turns a collection of atoms into an oriented point cloud.
 
@@ -279,17 +259,14 @@ def atoms_to_points_normals(
                 batch_atoms,
                 batch_z,
                 smoothness=smoothness,
-                atomtypes=atomtypes,
-                aa=aa
-            )
+                atom_rad=atom_rad)
             Loss = ((dists - T) ** 2).sum()
             g = torch.autograd.grad(Loss, z)[0]
             z.data -= 0.5 * g
 
         # d) Only keep the points which are reasonably close to the level set:
         dists = soft_distances(
-            atoms, z, batch_atoms, batch_z, smoothness=smoothness, atomtypes=atomtypes,aa=aa
-        )
+            atoms, z, batch_atoms, batch_z, smoothness=smoothness, atom_rad=atom_rad)
         margin = (dists - T).abs()
         mask = margin < variance * T
 
@@ -303,16 +280,14 @@ def atoms_to_points_normals(
                 batch_atoms,
                 batch_z,
                 smoothness=smoothness,
-                atomtypes=atomtypes,aa=aa
-            )
+                atom_rad=atom_rad)
             Loss = (1.0 * dists).sum()
             g = torch.autograd.grad(Loss, zz)[0]
             normals = F.normalize(g, p=2, dim=-1)  # (N, 3)
             zz = zz + 1.0 * T * normals
 
         dists = soft_distances(
-            atoms, zz, batch_atoms, batch_z, smoothness=smoothness, atomtypes=atomtypes,aa=aa
-        )
+            atoms, zz, batch_atoms, batch_z, smoothness=smoothness, atom_rad=atom_rad)
         mask = mask & (dists > 1.5 * T)
 
         z = z[mask].contiguous().detach()
@@ -330,8 +305,7 @@ def atoms_to_points_normals(
             batch_atoms,
             batch_points,
             smoothness=smoothness,
-            atomtypes=atomtypes,
-            aa=aa
+            atom_rad=atom_rad
         )
         Loss = (1.0 * dists).sum()
         g = torch.autograd.grad(Loss, p)[0]

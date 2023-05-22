@@ -372,9 +372,9 @@ def combine_pair(P1, P2):
         if v1 is None:
             continue
 
-        if key == "batch" or key == "batch_atoms":
+        if key == "xyz_batch" or key == "atom_xyz_batch":
             v1v2 = torch.cat([v1, v2 + v1[-1] + 1], dim=0)
-        elif key == "triangles":
+        elif key == "face":
             # v1v2 = torch.cat([v1,v2],dim=1)
             continue
         else:
@@ -385,12 +385,12 @@ def combine_pair(P1, P2):
 
 
 def split_pair(P1P2):
-    batch_size = P1P2["batch_atoms"][-1] + 1
-    p1_indices = P1P2["batch"] < batch_size // 2
-    p2_indices = P1P2["batch"] >= batch_size // 2
+    batch_size = P1P2["atom_xyz_batch"][-1] + 1
+    p1_indices = P1P2["xyz_batch"] < batch_size // 2
+    p2_indices = P1P2["xyz_batch"] >= batch_size // 2
 
-    p1_atom_indices = P1P2["batch_atoms"] < batch_size // 2
-    p2_atom_indices = P1P2["batch_atoms"] >= batch_size // 2
+    p1_atom_indices = P1P2["atom_xyz_batch"] < batch_size // 2
+    p2_atom_indices = P1P2["atom_xyz_batch"] >= batch_size // 2
 
     P1 = {}
     P2 = {}
@@ -404,7 +404,7 @@ def split_pair(P1P2):
         elif "atom" in key:
             P1[key] = v1v2[p1_atom_indices]
             P2[key] = v1v2[p2_atom_indices]
-        elif key == "triangles":
+        elif key == "face":
             continue
             # P1[key] = v1v2[:,p1_atom_indices]
             # P2[key] = v1v2[:,p2_atom_indices]
@@ -412,8 +412,8 @@ def split_pair(P1P2):
             P1[key] = v1v2[p1_indices]
             P2[key] = v1v2[p2_indices]
 
-    P2["batch"] = P2["batch"] - batch_size + 1
-    P2["batch_atoms"] = P2["batch_atoms"] - batch_size + 1
+    P2["xyz_batch"] = P2["xyz_batch"] - batch_size + 1
+    P2["atom_xyz_batch"] = P2["atom_xyz_batch"] - batch_size + 1
 
     return P1, P2
 
@@ -425,7 +425,6 @@ class dMaSIF(nn.Module):
         self.curvature_scales = args.curvature_scales
         self.args = args
 
-        I = args.in_channels
         I = len(args.curvature_scales)*2+args.chem_dims
         O = args.orientation_units
         E = args.emb_dims
@@ -496,12 +495,12 @@ class dMaSIF(nn.Module):
             triangles=None,
             normals= P["normals"],
             scales=self.curvature_scales,
-            batch=P["batch"],
+            batch=P["xyz_batch"],
         )
 
         # Compute chemical features on-the-fly:
         chemfeats = self.atomnet(
-            P["xyz"], P["atom_xyz"], P["atomtypes"], P["batch"], P["batch_atoms"]
+            P["xyz"], P["atom_xyz"], P["atom_types"], P["xyz_batch"], P["atom_xyz_batch"]
         )
 
         # Concatenate our features:
@@ -514,7 +513,7 @@ class dMaSIF(nn.Module):
         P["input_features"] = features
         
         synchronize() 
-        begin = time.time()
+        conv_time = time.time()
 
         # Ours:
         self.conv.load_mesh(
@@ -522,7 +521,7 @@ class dMaSIF(nn.Module):
                 triangles=None,
                 normals=P["normals"],
                 weights=self.orientation_scores(features),
-                batch=P["batch"],
+                batch=P["xyz_batch"],
             )
         P["embedding_1"] = self.conv(features)
         if self.args.split:
@@ -531,37 +530,43 @@ class dMaSIF(nn.Module):
                     triangles=None,
                     normals=P["normals"],
                     weights=self.orientation_scores2(features),
-                    batch=P["batch"],
+                    batch=P["xyz_batch"],
                 )
             P["embedding_2"] = self.conv2(features)
 
-
-        end = time.time()
         synchronize()
+        conv_time = time.time()-conv_time
         memory_usage = torch.cuda.max_memory_allocated()
-        conv_time = end - begin
 
         return conv_time, memory_usage
 
     def preprocess_surface(self, P):
-        P["xyz"], P["normals"], P["batch"] = atoms_to_points_normals(
-            P["atoms"],
-            P["batch_atoms"],
-            atomtypes=P["atomtypes"],
+        synchronize() 
+        surf_time = time.time()
+
+        P["xyz"], P["normals"], P["xyz_batch"] = atoms_to_points_normals(
+            P["atom_xyz"],
+            P["atom_xyz_batch"],
+            atom_rad=P["atom_rad"],
             resolution=self.args.resolution,
             sup_sampling=self.args.sup_sampling,
-            distance=self.args.distance,
-            aa=self.args.aa
+            distance=self.args.distance
         )
+
+        synchronize()
+        surf_time = time.time()-surf_time
+
+        return surf_time
 
     def forward(self, P1, P2=None):
         # Compute embeddings of the point clouds:
+        surf_time=0
         if ("xyz" not in P1):
-            self.preprocess_surface(self, P1)
+            surf_time = self.preprocess_surface(self, P1)
 
         if P2 is not None:
             if ("xyz" not in P2):
-                self.preprocess_surface(self, P2)
+                surf_time += self.preprocess_surface(self, P2)
             P1P2 = combine_pair(P1, P2)
         else:
             P1P2 = P1
@@ -585,6 +590,7 @@ class dMaSIF(nn.Module):
             "P1": P1,
             "P2": P2,
             "R_values": R_values,
+            "surf_time": surf_time,        
             "conv_time": conv_time,
             "memory_usage": memory_usage,
         }

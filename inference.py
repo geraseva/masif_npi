@@ -20,6 +20,12 @@ from argparse import Namespace
 import warnings
 warnings.filterwarnings("ignore")
 
+import pykeops
+try:
+    pykeops.set_bin_folder(f'.cache/pykeops-1.5-cpython-37/{os.uname().nodename}/')
+except:
+    pykeops.set_build_folder(f'.cache/keops2.1/{os.uname().nodename}/build/')
+
 args= parse_inf()
 
 print('Start inference')

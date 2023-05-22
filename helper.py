@@ -1,19 +1,43 @@
 # from https://github.com/FreyrS/dMaSIF
 
-import colorsys
-
 import numpy as np
 import torch
 from pykeops.torch import LazyTensor
-from plyfile import PlyData, PlyElement
-from pathlib import Path
+
+def initialize(device='cpu', seed=None):
+    
+    import pykeops
+    import os
+    import warnings
+
+    warnings.filterwarnings("ignore")
+
+    # Ensure reproducibility:
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.deterministic = True
+    if seed!=None:
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+    torch.set_num_threads(4)
+    if device!='cpu':
+        if seed!=None:
+            torch.cuda.manual_seed_all(seed)
+
+    try:
+        pykeops.set_bin_folder(f'.cache/pykeops-1.5-cpython-37/{os.uname().nodename}/')
+    except AttributeError:
+        pykeops.set_build_folder(f'.cache/keops2.1/{os.uname().nodename}/build/')
 
 def pass_function():
     pass 
+
+default_device=f'cuda:{torch.cuda.current_device()}' if torch.cuda.is_available() else 'cpu'
 tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 inttensor = torch.cuda.LongTensor if torch.cuda.is_available() else torch.LongTensor
 synchronize = torch.cuda.synchronize if torch.cuda.is_available() else pass_function
-numpy = lambda x: x.detach().cpu().numpy()
+
+def numpy(x): 
+    return x.detach().cpu().numpy()
 
 
 def ranges_slices(batch):
