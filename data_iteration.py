@@ -116,35 +116,28 @@ def save_protein_batch_single(protein_pair_id, P, save_path, pdb_idx):
 def compute_loss(args, P1, P2):
 
     if args.search:
-        pos_xyz1 = P1["xyz"][P1["labels"] == 1]
-        pos_xyz2 = P2["xyz"][P2["labels"] == 1]
-        pos_descs1 = P1["embedding_1"][P1["labels"] == 1]
-        pos_descs2 = P2["embedding_2"][P2["labels"] == 1]
 
-        pos_xyz_dists = (
-            ((pos_xyz1[:, None, :] - pos_xyz2[None, :, :]) ** 2).sum(-1)
-        )
-        pos_desc_dists = torch.matmul(pos_descs1, pos_descs2.T)
+        pos_descs1 = P1["embedding_1"][P1["edge_labels"],:]
+        pos_descs2 = P2["embedding_2"][P2["edge_labels"],:]
+        pos_preds = torch.sum(pos_descs1*pos_descs2, axis=-1)
 
-        pos_preds = pos_desc_dists[pos_xyz_dists < args.threshold**2]
-        n_desc_sample = 100
+        pos_descs1_2 = P1["embedding_2"][P1["edge_labels"],:]
+        pos_descs2_2 = P2["embedding_1"][P2["edge_labels"],:]
+        pos_preds2 = torch.sum(pos_descs1_2*pos_descs2_2, axis=-1)
 
-        sample_desc2 = torch.randperm(len(P2["embedding_2"]))[:n_desc_sample]
-        sample_desc2 = P2["embedding_2"][sample_desc2]
-        neg_preds = torch.matmul(pos_descs1, sample_desc2.T).view(-1)
-
-        pos_descs1_2 = P1["embedding_2"][P1["labels"] == 1]
-        pos_descs2_2 = P2["embedding_1"][P2["labels"] == 1]
-
-        pos_desc_dists2 = torch.matmul(pos_descs2_2, pos_descs1_2.T)
-        pos_preds2 = pos_desc_dists2[pos_xyz_dists.T < args.threshold**2]
         pos_preds = torch.cat([pos_preds, pos_preds2], dim=0)
 
         n_desc_sample = 100
+        
+        sample_desc1=P1["embedding_1"][P1["labels"] == 1]
+        sample_desc2 = torch.randperm(len(P2["embedding_2"]))[:n_desc_sample]
+        sample_desc2 = P2["embedding_2"][sample_desc2]
+        neg_preds = torch.matmul(sample_desc1, sample_desc2.T).view(-1)
 
+        sample_desc2_1=P1["embedding_2"][P1["labels"] == 1]
         sample_desc1_2 = torch.randperm(len(P1["embedding_2"]))[:n_desc_sample]
         sample_desc1_2 = P1["embedding_2"][sample_desc1_2]
-        neg_preds_2 = torch.matmul(pos_descs2_2, sample_desc1_2.T).view(-1)
+        neg_preds_2 = torch.matmul(sample_desc2_1, sample_desc1_2.T).view(-1)
 
         neg_preds = torch.cat([neg_preds, neg_preds_2], dim=0)
 
@@ -173,9 +166,10 @@ def compute_loss(args, P1, P2):
     labels_concat = torch.cat([pos_labels, neg_labels])
     
     if args.loss=='CELoss':
-        loss = F.cross_entropy(preds_concat, labels_concat)
+        loss = F.cross_entropy(preds_concat, labels_concat, reduction='mean')
     elif args.loss=='BCELoss':
-        loss = F.binary_cross_entropy_with_logits(preds_concat.squeeze(), labels_concat.float())
+        loss = F.binary_cross_entropy_with_logits(preds_concat.squeeze(), labels_concat.float(),
+                                                  reduction='mean')
     elif args.loss=='FocalLoss':
         loss = focal_loss(preds_concat, labels_concat, reduction='mean')
 
@@ -202,8 +196,8 @@ def extract_single(P_batch, number):
     for key in P_batch.keys():
         if 'atom' in key:
             P[key] = P_batch.__getitem__(key)[batch_atoms]
-        elif 'face' in key:
-            pass
+        elif ('face' in key) or ('edge' in key):
+            continue
         else:
             P[key] = P_batch.__getitem__(key)[batch]
     return P
@@ -247,30 +241,58 @@ def iterate(
 
         P1_batch = process_single(protein_pair, chain_idx=1)
         P2_batch = None if args.single_protein else process_single(protein_pair, chain_idx=2)
+ 
+        outputs = net(P1_batch, P2_batch)
 
-        for protein_it in range(args.batch_size):
+        P1_batch = outputs["P1"]
+        P2_batch = outputs["P2"]
 
-            P1 = extract_single(P1_batch, protein_it)
-            P2 = None if args.single_protein else extract_single(P2_batch, protein_it)
+        if P1_batch["labels"] is not None:
+            loss, sampled_preds, sampled_labels = compute_loss(args, P1_batch, P2_batch)
+        else:
+            loss = torch.tensor(0.0)
+            sampled_preds = None
+            sampled_labels = None
 
-            outputs = net(P1, P2)
+        # Compute the gradient, update the model weights:
+        if not test:
+            loss.backward()
+            optimizer.step()   
 
-            P1 = outputs["P1"]
-            P2 = outputs["P2"]
-        
-            if P1["labels"] is not None:
-                loss, sampled_preds, sampled_labels = compute_loss(args, P1, P2)
+        if sampled_labels is not None and sampled_labels.shape[0]>0:
+            if len(sampled_preds.shape)>1 and sampled_preds.shape[1]>1:
+                a=np.rint(numpy(sampled_labels))
+                b=numpy(F.softmax(sampled_preds, dim=1))
+                roc_auc = roc_auc_score(
+                    a,b, multi_class='ovo', 
+                    labels=list(range(sampled_preds.shape[1]))
+                )
             else:
-                loss = torch.tensor(0.0)
-                sampled_preds = None
-                sampled_labels = None
+                a=np.rint(numpy(sampled_labels.view(-1)))
+                b=numpy(sampled_preds.view(-1))
+                roc_auc = roc_auc_score(a, b)
+        else:
+            roc_auc = 0.0
+           
+        info.append(
+            dict(
+                {
+                    "Loss": loss.detach().item(),
+                    "ROC-AUC": roc_auc,
+                    'surf_time': outputs["surf_time"],
+                    "conv_time": outputs["conv_time"],
+                    "memory_usage": outputs["memory_usage"],
+                },
+                # Merge the "R_values" dict into "info", with a prefix:
+                **{"R_values/" + k: v for k, v in outputs["R_values"].items()}
+                )
+        )
 
-            # Compute the gradient, update the model weights:
-            if not test:
-                loss.backward()
-                optimizer.step()
+        if save_path is not None:
+            for protein_it in range(args.batch_size):
+                P1 = extract_single(P1_batch, protein_it)
+                P2 = None if args.single_protein else extract_single(P2_batch, protein_it)
 
-            if save_path is not None:
                 save_protein_batch_single(
                     batch_ids[protein_it], P1, save_path, pdb_idx=1
                 )
@@ -278,34 +300,6 @@ def iterate(
                     save_protein_batch_single(
                         batch_ids[protein_it], P2, save_path, pdb_idx=2
                     )
-
-            if sampled_labels is not None and sampled_labels.shape[0]>0:
-                if len(sampled_preds.shape)>1 and sampled_preds.shape[1]>1:
-                    a=np.rint(numpy(sampled_labels))
-                    b=numpy(F.softmax(sampled_preds, dim=1))
-                    roc_auc = roc_auc_score(
-                        a,b, multi_class='ovo', 
-                        labels=list(range(sampled_preds.shape[1]))
-                    )
-                else:
-                    a=np.rint(numpy(sampled_labels.view(-1)))
-                    b=numpy(sampled_preds.view(-1))
-                    roc_auc = roc_auc_score(a, b)
-            else:
-                roc_auc = 0.0
-           
-            info.append(
-                dict(
-                    {
-                        "Loss": loss.detach().item(),
-                        "ROC-AUC": roc_auc,
-                        'surf_time': outputs["surf_time"],
-                        "conv_time": outputs["conv_time"],
-                        "memory_usage": outputs["memory_usage"],
-                    },
-                    # Merge the "R_values" dict into "info", with a prefix:
-                    **{"R_values/" + k: v for k, v in outputs["R_values"].items()}                )
-            )
 
 
     # Turn a list of dicts into a dict of lists:

@@ -129,7 +129,7 @@ train_inf_parser.add_argument(
     "--data_dir", type=str, help="Numpy data storage"
 )
 train_inf_parser.add_argument(
-    "--device", type=str, default="cuda:0", help="Which gpu/cpu to train on"
+    "--device", type=str, default="cpu", help="Which gpu/cpu to train on"
 )
 train_inf_parser.add_argument(
     "--batch_size", type=int, default=1, help="Batch size"
@@ -146,6 +146,7 @@ subparsers = main_parser.add_subparsers(title='mode',help='To train or to valida
 train_parser=subparsers.add_parser('train', description="Training parameters", parents=[train_inf_parser],
                                      formatter_class=argparse.RawDescriptionHelpFormatter,
                                    epilog=f'network arguments:{net_parser.format_help().split("optional arguments:")[1]}')
+
 train_parser._action_groups=train_parser._action_groups[::-1]
 
 train_parser.add_argument(
@@ -185,7 +186,6 @@ train_parser.add_argument(
 
 inf_parser=subparsers.add_parser('inference',description="Inference parameters", parents=[train_inf_parser])
 
-inf_parser.set_defaults(device='cpu',random_rotation=False)
 set_group = inf_parser._action_groups[-1].add_mutually_exclusive_group(required=True)
 inf_parser._action_groups=inf_parser._action_groups[::-1]
 set_group.add_argument(

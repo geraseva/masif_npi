@@ -31,8 +31,8 @@ from helper import *
 
 initialize(device=args.device, seed=args.seed)
 
-print(f'Start {args.mode}')
-print('Arguments:',args)
+print(f'# Start {args.mode}')
+print('## Arguments:',args)
 
 model_path = "models/" + args.experiment_name
 if args.mode=='inference':
@@ -64,8 +64,8 @@ elif args.transfer_learning != "":
         except:
             pass 
 
-print('Model loaded')
-print('Model arguments:',net_args)
+print('# Model loaded')
+print('## Model arguments:',net_args)
 
 
 batch_vars = ["xyz_p1", "xyz_p2", "atom_xyz_p1", "atom_xyz_p2"]
@@ -90,7 +90,7 @@ if args.single_protein:
 pre_transformations=Compose(pre_transformations)
 
 if args.mode=='train':
-    print('Loading datasets')   
+    print('# Loading datasets')   
     if args.site:
         prefix=f'site_{args.na.lower()}_'
     elif args.npi:
@@ -112,17 +112,17 @@ if args.mode=='train':
     train_dataset, val_dataset = random_split(
         full_dataset, [train_nsamples, val_nsamples]
     )
-    print('Train nsamples:',train_nsamples)
-    print('Val nsamples:',val_nsamples)
-    print('Test nsamples:',len(test_dataset))
+    print('## Train nsamples:',train_nsamples)
+    print('## Val nsamples:',val_nsamples)
+    print('## Test nsamples:',len(test_dataset))
 
     train_loader = DataLoader(
         train_dataset, batch_size=args.batch_size, follow_batch=batch_vars, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=1, follow_batch=batch_vars)
-    test_loader = DataLoader(test_dataset, batch_size=1, follow_batch=batch_vars)
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, follow_batch=batch_vars)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, follow_batch=batch_vars)
 
 else:
-    print('Loading testing set')   
+    print('# Loading testing set')   
     if args.single_pdb != "":
         test_dataset = [load_protein_pair(args.single_pdb, args.data_dir,
             use_surfaces=args.use_surfaces,encoders=args.encoders)]
@@ -137,21 +137,21 @@ else:
                 test_dataset.append(load_protein_pair(pdb, args.data_dir,
                     use_surfaces=args.use_surfaces,encoders=args.encoders))
             except FileNotFoundError:
-                print(f'Skipping non-existing files for {pdb}' )
+                print(f'##! Skipping non-existing files for {pdb}' )
             else:
                 test_pdb_ids.append(pdb)
 
     test_dataset = [pre_transformations(data) for data in tqdm(test_dataset)]
     test_dataset = [transformations(data) for data in tqdm(test_dataset)]
     
-    print('Test nsamples:',len(test_dataset))
+    print('## Test nsamples:',len(test_dataset))
 
     test_loader = DataLoader(
         test_dataset, batch_size=1, follow_batch=batch_vars, shuffle=False)
 
 if args.mode=='train':
 
-    print('Start training')
+    print('# Start training')
 
     #optimizer = torch.optim.Adam(net.parameters(), lr=3e-4, amsgrad=True)
     optimizer = Lion(net.parameters(), lr=1e-4)
@@ -205,7 +205,7 @@ if args.mode=='train':
                 val_loss = np.nanmean(info["Loss"])
         
         if val_loss < best_loss:
-            print("Validation loss {}, saving model".format(val_loss))
+            print("## Validation loss {}, saving model".format(val_loss))
             torch.save(
                 {
                     "epoch": i,
@@ -220,7 +220,7 @@ if args.mode=='train':
 else:
     save_predictions_path = Path("preds/" + args.experiment_name)
 
-    print('Start prediction')
+    print('# Start prediction')
 
     if not os.path.isdir(save_predictions_path):
         os.makedirs(save_predictions_path)
@@ -237,7 +237,7 @@ else:
 
     info['indexes']=test_pdb_ids
 
-    print('Mean roc-auc:',np.nanmean(info["ROC-AUC"]),'std roc-auc:',np.nanstd(info["ROC-AUC"]))
+    print('## Mean roc-auc:',np.nanmean(info["ROC-AUC"]),'std roc-auc:',np.nanstd(info["ROC-AUC"]))
 
     for i, pdb in enumerate(info['indexes']):
-        print(f"{pdb}: roc-auc {info['ROC-AUC'][i]} Loss {info['Loss'][i]}")
+        print(f"{pdb} roc-auc {info['ROC-AUC'][i]}\n {pdb} Loss {info['Loss'][i]}")

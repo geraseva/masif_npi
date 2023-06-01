@@ -15,7 +15,6 @@ from geometry_processing import (
 from helper import *
 from benchmark_models import dMaSIFConv_seg
 
-torch.autograd.set_detect_anomaly(False)
 
 def knn_atoms(x, y, x_batch, y_batch, k):
     N, D = x.shape
@@ -372,11 +371,10 @@ def combine_pair(P1, P2):
         if v1 is None:
             continue
 
-        if key == "xyz_batch" or key == "atom_xyz_batch":
-            v1v2 = torch.cat([v1, v2 + v1[-1] + 1], dim=0)
-        elif key == "face":
-            # v1v2 = torch.cat([v1,v2],dim=1)
-            continue
+        if 'batch' in key:
+            v1v2 = torch.cat([v1*2, v2*2 + 1], dim=0)
+        elif ("face" in key) or ('edge' in key):
+            v1v2 = torch.cat([v1, v2 + P1['xyz'].shape[0]], dim=0)
         else:
             v1v2 = torch.cat([v1, v2], dim=0)
         P1P2[key] = v1v2
@@ -385,12 +383,11 @@ def combine_pair(P1, P2):
 
 
 def split_pair(P1P2):
-    batch_size = P1P2["atom_xyz_batch"][-1] + 1
-    p1_indices = P1P2["xyz_batch"] < batch_size // 2
-    p2_indices = P1P2["xyz_batch"] >= batch_size // 2
+    p1_indices = (P1P2["xyz_batch"] % 2) == 0
+    p2_indices = (P1P2["xyz_batch"] % 2) == 1
 
-    p1_atom_indices = P1P2["atom_xyz_batch"] < batch_size // 2
-    p2_atom_indices = P1P2["atom_xyz_batch"] >= batch_size // 2
+    p1_atom_indices = (P1P2["atom_xyz_batch"] % 2) == 0
+    p2_atom_indices = (P1P2["atom_xyz_batch"] % 2) == 1
 
     P1 = {}
     P2 = {}
@@ -404,16 +401,15 @@ def split_pair(P1P2):
         elif "atom" in key:
             P1[key] = v1v2[p1_atom_indices]
             P2[key] = v1v2[p2_atom_indices]
-        elif key == "face":
-            continue
-            # P1[key] = v1v2[:,p1_atom_indices]
-            # P2[key] = v1v2[:,p2_atom_indices]
+        elif ("face" in key) or ('edge' in key):
+            P1[key] = v1v2[v1v2<sum(p1_indices)]
+            P2[key] = v1v2[v1v2>=sum(p1_indices)]-sum(p1_indices)
         else:
             P1[key] = v1v2[p1_indices]
             P2[key] = v1v2[p2_indices]
-
-    P2["xyz_batch"] = P2["xyz_batch"] - batch_size + 1
-    P2["atom_xyz_batch"] = P2["atom_xyz_batch"] - batch_size + 1
+            if 'batch' in key:
+                P1[key] = P1[key] // 2
+                P2[key] = P2[key] // 2
 
     return P1, P2
 

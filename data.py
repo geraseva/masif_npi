@@ -107,17 +107,20 @@ class PairData(Data):
         atom_rad_p2=None,
         rand_rot1=None,
         rand_rot2=None,
-    ):
+        edge_labels_p1=None,
+        edge_labels_p2=None  
+          ):
         super().__init__()
         self.xyz_p1 = xyz_p1
         self.xyz_p2 = xyz_p2
         self.face_p1 = face_p1
         self.face_p2 = face_p2
-
         self.chemical_features_p1 = chemical_features_p1
         self.chemical_features_p2 = chemical_features_p2
         self.labels_p1 = labels_p1
         self.labels_p2 = labels_p2
+        self.edge_labels_p1=edge_labels_p1
+        self.edge_labels_p2=edge_labels_p2
         self.normals_p1 = normals_p1
         self.normals_p2 = normals_p2
         self.center_location_p1 = center_location_p1
@@ -136,18 +139,14 @@ class PairData(Data):
         self.rand_rot2 = rand_rot2
 
     def __inc__(self, key, value, *args, **kwargs):
-        if key == "face_p1":
-            return self.xyz_p1.size(0)
-        if key == "face_p2":
-            return self.xyz_p2.size(0)
+        if ('face' in key) or ('edge' in key):
+            if key[-3:]== '_p1':
+                return self.xyz_p1.size(0)
+            else:
+                return self.xyz_p2.size(0)
         else:
             return super(PairData, self).__inc__(key, value)
 
-    def __cat_dim__(self, key, value, *args, **kwargs):
-        if ("index" in key) or ("face" in key):
-            return 1
-        else:
-            return 0
 
 
 def load_protein_pair(pdb_id, data_dir,use_surfaces=False, encoders=None):
@@ -217,7 +216,7 @@ class NpiDataset(InMemoryDataset):
 
     def process(self):
         
-        print('Loading npy files', self.name)
+        print('# Loading npy files', self.name)
 
         protein_dir = str(Path(self.root))+'/raw/01-benchmark_surfaces_npy/'
         processed_dataset=[]
@@ -227,7 +226,7 @@ class NpiDataset(InMemoryDataset):
                 protein_pair = load_protein_pair(idx, protein_dir, use_surfaces=self.use_surfaces, 
                     encoders=self.encoders)
             except FileNotFoundError:
-                print(f'Skipping non-existing files for {idx}' )
+                print(f'##! Skipping non-existing files for {idx}' )
                 continue
             processed_dataset.append(protein_pair)
             processed_idx.append(idx)
@@ -240,7 +239,7 @@ class NpiDataset(InMemoryDataset):
 
         if self.pre_filter is not None:
             processed_dataset = [
-                data for data in processed_dataset if self.pre_filter(data)
+                data.to('cpu') for data in processed_dataset if self.pre_filter(data)
             ]
         
         processed_dataset, slices=self.collate(processed_dataset)
@@ -421,8 +420,19 @@ class GenerateMatchingLabels(object):
         xyz_dists = ((xyz1_i - xyz2_j) ** 2).sum(-1)
         xyz_dists = (self.threshold**2 - xyz_dists).step()
 
-        protein_pair.labels_p1 = (xyz_dists.sum(1) > 1.0).float().view(-1)
-        protein_pair.labels_p2 = (xyz_dists.sum(0) > 1.0).float().view(-1)
+        protein_pair.labels_p1 = (xyz_dists.sum(1) > 1.0).float().view(-1).detach()
+        protein_pair.labels_p2 = (xyz_dists.sum(0) > 1.0).float().view(-1).detach()
+
+        pos_xyz1 = protein_pair.xyz_p1[protein_pair.labels_p1==1]
+        pos_xyz2 = protein_pair.xyz_p2[protein_pair.labels_p2==1]
+
+        pos_xyz_dists = (
+            ((pos_xyz1[:, None, :] - pos_xyz2[None, :, :]) ** 2).sum(-1)
+        )
+        edges=torch.nonzero(self.threshold**2 > pos_xyz_dists, as_tuple=True)
+
+        protein_pair.edge_labels_p1=torch.nonzero(protein_pair.labels_p1)[edges[0]].view(-1).detach()
+        protein_pair.edge_labels_p2=torch.nonzero(protein_pair.labels_p2)[edges[1]].view(-1).detach()
 
         return protein_pair
 
