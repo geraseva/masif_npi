@@ -202,7 +202,7 @@ class NpiDataset(InMemoryDataset):
         
         super(NpiDataset, self).__init__(root, transform, pre_transform,pre_filter)
 
-        self.data, self.slices = torch.load(self.processed_paths[0], map_location=default_device)
+        self.data, self.slices = torch.load(self.processed_paths[0], map_location='cpu')
     
 
     @property
@@ -458,11 +458,11 @@ class RandomRotationPairAtoms(object):
 
     def __call__(self, data):
 
-        R1 = tensor(Rotation.random().as_matrix())
+        R1 = torch.FloatTensor(Rotation.random().as_matrix()).to(data.xyz_p1.device)
         if self.as_single:
             R2=R1
         else:
-            R2 = tensor(Rotation.random().as_matrix())
+            R2 = torch.FloatTensor(Rotation.random().as_matrix()).to(data.xyz_p2.device)
 
         data.rand_rot1 = R1
 
