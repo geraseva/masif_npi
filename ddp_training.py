@@ -17,6 +17,7 @@ import warnings
 from data import *
 from model import dMaSIF, Lion
 from data_iteration import iterate
+import time
 
 def ddp_setup(rank, rank_list):
 
@@ -237,6 +238,11 @@ if __name__ == "__main__":
 
     with open(f"models/{args.experiment_name}_args.json", 'w') as f:
         json.dump(net_args.__dict__, f, indent=2)
-
+    
+    fulltime=time.time()
     mp.spawn(main, args=(rank_list, args, dataset, net, optimizer, starting_epoch), nprocs=len(rank_list))
+
+    fulltime=time.time()-fulltime
+    print(f'## Execution complete {fulltime} seconds')
+
 
