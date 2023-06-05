@@ -89,18 +89,18 @@ class Trainer:
             if dataset_type == "Validation":  # Store validation loss for saving the model
                 val_loss = np.nanmean(info["Loss"])
         
-            if val_loss < self.best_loss and self.gpu_id==0:
-                print("## Validation loss {}, saving model".format(val_loss))
-                torch.save(
-                    {
-                        "epoch": epoch,
-                        "model_state_dict": net.module.state_dict(),
-                        "optimizer_state_dict": optimizer.state_dict(),
-                        "best_loss": best_loss,
-                    },
-                    f"models/{self.args.experiment_name}_epoch{epoch}"
-                )
-                self.best_loss = val_loss
+                if val_loss < self.best_loss and self.gpu_id==0:
+                    print("## Validation loss {}, saving model".format(val_loss))
+                    torch.save(
+                        {
+                            "epoch": epoch,
+                            "model_state_dict": net.module.state_dict(),
+                            "optimizer_state_dict": optimizer.state_dict(),
+                            "best_loss": best_loss,
+                        },
+                        f"models/{self.args.experiment_name}_epoch{epoch}"
+                    )
+                    self.best_loss = val_loss
 
 
     def train(self, starting_epoch: int):
