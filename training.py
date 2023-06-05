@@ -12,7 +12,6 @@ import json
 from torch.utils.data import random_split
 from torch_geometric.loader import DataLoader
 from torch_geometric.transforms import Compose
-from lion_pytorch import Lion
 from pathlib import Path
 from argparse import Namespace
 
@@ -25,7 +24,7 @@ if args.device!='cpu':
         print('Switch to cpu')
 
 from data import *
-from model import dMaSIF
+from model import dMaSIF, Lion
 from data_iteration import iterate
 from helper import *
 
@@ -115,6 +114,7 @@ if args.mode=='train':
     print('## Train nsamples:',train_nsamples)
     print('## Val nsamples:',val_nsamples)
     print('## Test nsamples:',len(test_dataset))
+
 
     train_loader = DataLoader(
         train_dataset, batch_size=args.batch_size, follow_batch=batch_vars, shuffle=True)

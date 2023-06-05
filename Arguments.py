@@ -132,6 +132,10 @@ train_inf_parser.add_argument(
     "--device", type=str, default="cpu", help="Which gpu/cpu to train on"
 )
 train_inf_parser.add_argument(
+    "--devices", type=str, default=None, nargs='*',
+    help="Which gpus to train on"
+)
+train_inf_parser.add_argument(
     "--batch_size", type=int, default=1, help="Batch size"
 )
 train_inf_parser.add_argument( "--threshold", type=float, 
@@ -237,6 +241,8 @@ def parse_train():
                                             }]
     if args.mode=='train':
         net_args, _ = net_parser.parse_known_args()
+        if args.devices==None:
+            args.devices=[args.device]
         if net_args.atom_dims==None:
             if args.search and args.na!='protein': 
                 net_args.atom_dims=6

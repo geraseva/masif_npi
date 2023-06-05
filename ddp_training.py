@@ -7,7 +7,7 @@ import torch.multiprocessing as mp
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
-from lion_pytorch import Lion
+#from lion_pytorch import Lion
 from pathlib import Path
 from argparse import Namespace
 import gc
@@ -15,7 +15,7 @@ import pykeops
 import os
 import warnings
 from data import *
-from model import dMaSIF
+from model import dMaSIF, Lion
 from data_iteration import iterate
 
 def ddp_setup(rank, rank_list):
@@ -113,6 +113,7 @@ def load_train_objs(args, net_args):
 
     net = dMaSIF(net_args)
     optimizer = Lion(net.parameters(), lr=1e-4)
+    #optimizer = torch.optim.Adam(net.parameters(), lr=3e-4, amsgrad=True)
     starting_epoch = 0
 
     if args.restart_training != "":
@@ -200,16 +201,11 @@ def prepare_dataloader(dataset , args):
     return train_loader, val_loader, test_loader
 
 
-def main(rank: int, rank_list: int, args, net_args):
+def main(rank: int, rank_list: int, args, dataset, net, optimizer, starting_epoch):
+
+    warnings.simplefilter("ignore")
     ddp_setup(rank, rank_list)
-    dataset, net, optimizer, starting_epoch = load_train_objs(args, net_args)
     train_loader, val_loader, test_loader = prepare_dataloader(dataset, args)
-
-    if not Path("models/").exists():
-        Path("models/").mkdir(exist_ok=False)
-
-    with open(f"models/{args.experiment_name}_args.json", 'w') as f:
-        json.dump(net_args.__dict__, f, indent=2)
 
     gc.collect()    
     trainer = Trainer(model=net,
@@ -226,21 +222,21 @@ def main(rank: int, rank_list: int, args, net_args):
 
 if __name__ == "__main__":
 
-    import os, sys
     from Arguments import parse_train
     args, net_args = parse_train()
 
     rank_list=[x for x in args.devices if x!='cpu']
 
-    import pykeops
-    try:
-        pykeops.set_bin_folder(f'.cache/pykeops-1.5-cpython-37/{os.uname().nodename}/')
-    except AttributeError:
-        pykeops.set_build_folder(f'.cache/keops2.1/{os.uname().nodename}/build/')
-
     print(f'# Start {args.mode}')
     print('## Arguments:',args)
     print('## World size:',len(rank_list))
 
-    mp.spawn(main, args=(rank_list, args, net_args), nprocs=len(rank_list))
+    dataset, net, optimizer, starting_epoch = load_train_objs(args, net_args)
+    if not Path("models/").exists():
+        Path("models/").mkdir(exist_ok=False)
+
+    with open(f"models/{args.experiment_name}_args.json", 'w') as f:
+        json.dump(net_args.__dict__, f, indent=2)
+
+    mp.spawn(main, args=(rank_list, args, dataset, net, optimizer, starting_epoch), nprocs=len(rank_list))
 
