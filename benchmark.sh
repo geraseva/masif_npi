@@ -104,37 +104,30 @@ python  ${masif_root}/training.py --device cuda:0 \
 
 python  ${masif_root}/training.py --device cuda:0 \
  --experiment_name orig_search_atomnet_v --search \
- --feature_generation AtomNet_V --na protein \
- --radius 12 --n_layers 1  >> logs/log_orig_search.txt
+ --feature_generation AtomNet_V --na protein >> logs/log_orig_search.txt
 
 python ${masif_root}/training.py --device cuda:0 \
  --experiment_name orig_search_atomnet_mp --search \
- --feature_generation AtomNet_MP --na protein \
- --radius 12 --n_layers 1  >> logs/log_orig_search.txt
+ --feature_generation AtomNet_MP --na protein >> logs/log_orig_search.txt
 
 python ${masif_root}/training.py --device cuda:0 \
  --experiment_name orig_search_atomnet_v_mp --search \
- --feature_generation AtomNet_V_MP --na protein \
- --radius 12 --n_layers 1  >> logs/log_orig_search.txt
+ --feature_generation AtomNet_V_MP --na protein >> logs/log_orig_search.txt
 
  # prediction of interactions on NPI dataset
 
 python ${masif_root}/training.py --device cuda:0 \
  --experiment_name npi_search_atomnet --search \
- --feature_generation AtomNet --na NA \
- --radius 12 --n_layers 1  >> logs/log_na_search.txt
+ --feature_generation AtomNet --na NA >> logs/log_na_search.txt
 
  python ${masif_root}/training.py --device cuda:0 \
  --experiment_name npi_search_atomnet_v --search \
- --feature_generation AtomNet_V --na NA \
- --radius 12 --n_layers 1  >> logs/log_na_search.txt
+ --feature_generation AtomNet_V --na NA >> logs/log_na_search.txt
 
 python ${masif_root}/training.py --device cuda:0 \
  --experiment_name npi_search_atomnet_mp --search \
- --feature_generation AtomNet_MP --na NA \
- --radius 12 --n_layers 1  >> logs/log_na_search.txt
+ --feature_generation AtomNet_MP --na NA >> logs/log_na_search.txt
 
  python ${masif_root}/training.py --device cuda:0 \
  --experiment_name npi_search_atomnet_v_mp --search \
- --feature_generation AtomNet_V_MP --na NA \
- --radius 12 --n_layers 1  >> logs/log_na_search.txt
+ --feature_generation AtomNet_V_MP --na NA >> logs/log_na_search.txt
