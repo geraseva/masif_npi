@@ -124,7 +124,7 @@ train_inf_parser.add_argument( "--single_protein", help="Use single protein in a
 train_inf_parser.add_argument( "--use_surfaces", type=lambda x: (str(x).lower() == 'true'),
     help="Use precomputed surfaces and labels")
 train_inf_parser.add_argument( "--random_rotation", type=lambda x: (str(x).lower() == 'true'),
-    help="Move proteins to center and add random rotation", default=True)
+    help="Move proteins to center and add random rotation", default=None)
 train_inf_parser.add_argument(
     "--data_dir", type=str, help="Numpy data storage"
 )
@@ -241,6 +241,8 @@ def parse_train():
                                             }]
     if args.mode=='train':
         net_args, _ = net_parser.parse_known_args()
+        if args.random_rotation==None:
+            args.random_rotation=True
         if args.devices==None:
             args.devices=[args.device]
         if net_args.atom_dims==None:
@@ -293,6 +295,8 @@ def parse_train():
                 args.data_dir='npi_dataset/'
     else:
         net_args=None
+        if args.random_rotation==None:
+            args.random_rotation=False
         if args.data_dir==None:
             if args.na=='protein':
                 args.data_dir='surface_data/raw/01-benchmark_surfaces_npy/'
@@ -302,10 +306,7 @@ def parse_train():
 
     if args.threshold==None:
         if args.search:
-            if args.na=='protein':
-                args.threshold=1 # distance between two surface points
-            else:
-                args.threshold=2
+            args.threshold=1 # distance between two surface points
         else:
             args.threshold=5 # distance between surface point and atom center
     if args.single_protein==None:
