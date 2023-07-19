@@ -10,8 +10,9 @@ Use these commands to download and unpack the dataset of NA-protein interactions
     sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1jMKE2Pae7WNbQv8T1FsJz8UYDeL5CU9T" -O npi_dataset.tar.gz && rm -rf /tmp/cookies.txt
 
     mkdir npi_dataset
-    mkdir npi_dataset/raw    
-    tar -xzvf npi_dataset.tar.gz -C npi_dataset/raw/
+    mkdir npi_dataset/raw   
+    mkdir npi_dataset/raw/01-benchmark_surfaces_npy
+    tar -xzvf npi_dataset.tar.gz -C npi_dataset/raw/01-benchmark_surfaces_npy/
 
 Use this command to run the training benchmark:
 
