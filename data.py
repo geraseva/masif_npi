@@ -1,13 +1,86 @@
 import torch
 import torch.nn.functional as F
-from torch_geometric.data import InMemoryDataset, Dataset, Data
+from torch_geometric.data import InMemoryDataset, Data
 import numpy as np
 from scipy.spatial.transform import Rotation
 from tqdm import tqdm
 from pathlib import Path
+import Bio
+from Bio.PDB import * 
+from Bio.SeqUtils import IUPACData
+from subprocess import Popen, PIPE
+from multiprocessing import Pool
+from pykeops.torch import LazyTensor
 
-from helper import *
+import os
 
+from config import *
+
+PROTEIN_LETTERS = [x.upper() for x in IUPACData.protein_letters_3to1.keys()]
+
+def find_modified_residues(path):
+    """
+    Contributed by github user jomimc - find modified amino acids in the PDB (e.g. MSE)
+    """
+    res_set = set()
+    with open(path, 'r') as f:
+        for line in f:
+            if line[:6] == 'SEQRES':
+                for res in line.split()[4:]:
+                    if res in PROTEIN_LETTERS:
+                        continue
+                    res_set.add(res)
+            elif line[:4]=='ATOM':
+                break
+    return res_set
+
+
+def load_structure_np(structure, chain_ids=None, 
+                      modified=['LLP', 'KCX', 'FME', 'CSO', 'SEP', 'NH2', 'PCA', 'TPO', 'ACE', 'MSE']):
+    
+    if not isinstance(structure, Bio.PDB.Structure.Structure):
+        parser = PDBParser(QUIET=True)
+        structure = parser.get_structure(structure, structure)
+        modified = find_modified_residues(structure)
+
+    coords = []
+    types = []
+    res=[]
+
+    for chain in structure[0]:
+        if (chain_ids == None) or (chain.get_id() in chain_ids):
+            for residue in chain:
+                het = residue.get_id()
+                if (het[0] == " ") or (het[0][-3:] in modified):
+                    for atom in residue:
+                        coords.append(atom.get_coord())
+                        types.append(atom.get_name())
+                        res.append(residue.get_resname())
+    coords = np.stack(coords)
+    types_array = np.array(types)
+    res=np.array(res)
+       
+    return {"atom_xyz": coords, "atom_types": types_array, "atom_resnames": res}
+
+def protonate(in_pdb_file, out_pdb_file):
+    # protonate (i.e., add hydrogens) a pdb using reduce and save to an output file.
+    # in_pdb_file: file to protonate.
+    # out_pdb_file: output file where to save the protonated pdb file. 
+    
+    # Remove protons first, in case the structure is already protonated
+    args = ["reduce", "-Trim",  in_pdb_file]
+    p2 = Popen(args, stdout=PIPE, stderr=PIPE)
+    stdout, stderr = p2.communicate()
+    outfile = open(out_pdb_file, "w")
+    outfile.write(stdout.decode('utf-8').rstrip())
+    outfile.close()
+    # Now add them again.
+    args = ["reduce", "-HIS", "-NOCon", out_pdb_file]
+    p2 = Popen(args, stdout=PIPE, stderr=PIPE)
+    stdout, stderr = p2.communicate()
+    outfile = open(out_pdb_file, "w")
+    outfile.write(stdout.decode('utf-8'))
+    outfile.close()
 
 def encode_labels(labels,aa,onehot=0):
 
@@ -22,61 +95,38 @@ def encode_labels(labels,aa,onehot=0):
         labels_enc=tensor(labels_enc)
     return labels_enc
 
+def encode_npy(p, encoders):
 
-
-def load_protein_npy(pdb_id, data_dir, encoders, use_surfaces=False):
-
+    if len(p)==0:
+        return None
     list_to_onehot=['atom_types']
 
     protein_data={}
-    protein_data['atom_coords']=tensor(np.load(data_dir+'/'+(pdb_id + "_atomxyz.npy")))
+    protein_data['atom_xyz']=tensor(p['atom_xyz'])
 
-    atom_types=np.load(data_dir+'/'+(pdb_id + "_atomtypes.npy"))
-    atom_types=[a[0] for a in atom_types]
-
+    atom_types=[a[0] for a in p['atom_types']]
     for aa in encoders['atom_encoders']:
         o=max(aa['encoder'].values())+1 if aa['name'] in list_to_onehot else 0
         protein_data[aa['name']] = encode_labels(atom_types,aa['encoder'],o)
     
-    if encoders.get('residue_encoders') != None:
-        try:
-            atom_res=np.load(data_dir+'/'+(pdb_id + "_resnames.npy"))
-        except FileNotFoundError:
-            atom_res=np.zeros(len(atom_types))
-        for la in encoders['residue_encoders']:
-            protein_data[la['name']] = encode_labels(atom_res,la['encoder'])    
+    if encoders.get('atomname_encoders') != None:
+        for aa in encoders.get('atomname_encoders'):
+            o=max(aa['encoder'].values())+1 if aa['name'] in list_to_onehot else 0
+            protein_data[aa['name']] = encode_labels(p['atom_types'],aa['encoder'],o)
 
-    mask=torch.ones(protein_data['atom_coords'].shape[0], dtype=bool)
+    if encoders.get('residue_encoders') != None:
+        for la in encoders['residue_encoders']:
+            o=max(la['encoder'].values())+1 if la['name'] in list_to_onehot else 0
+            protein_data[la['name']] = encode_labels(p['atom_resnames'],la['encoder'],o)    
+
+    mask=torch.ones(protein_data['atom_xyz'].shape[0], dtype=bool)
     for key in protein_data:
         if 'mask' in key:
-            mask=mask&protein_data.pop[key]
+            mask=mask*protein_data.pop[key]
+    mask=(mask>0)
     for key in protein_data:
         protein_data[key]=protein_data[key][mask]
 
-
-    protein_data['face'] = (
-        inttensor(np.load(data_dir+'/'+(pdb_id + "_triangles.npy"))).T
-        if use_surfaces
-        else None
-    )
-    protein_data['xyz'] = tensor(np.load(data_dir+'/'+(pdb_id + "_xyz.npy"))) if use_surfaces else None
-
-    # Interface labels
-    protein_data['iface_labels'] = (
-        inttensor(np.load(data_dir+'/'+(pdb_id + "_iface_labels.npy")).reshape((-1, 1)))
-        if use_surfaces
-        else None
-    )
-
-    # Features
-    protein_data['chemical_features'] = (
-        tensor(np.load(data_dir+'/'+(pdb_id + "_features.npy"))) if use_surfaces else None
-    )
-
-    # Normals
-    protein_data['normals'] = (
-        tensor(np.load(data_dir+'/'+(pdb_id + "_normals.npy"))) if use_surfaces else None
-    )
     return protein_data
 
 
@@ -87,8 +137,6 @@ class PairData(Data):
         xyz_p2=None,
         face_p1=None,
         face_p2=None,
-        chemical_features_p1=None,
-        chemical_features_p2=None,
         labels_p1=None,
         labels_p2=None,
         normals_p1=None,
@@ -99,14 +147,14 @@ class PairData(Data):
         atom_xyz_p2=None,
         atom_types_p1=None,
         atom_types_p2=None,
-        atom_center1=None,
-        atom_center2=None,
+        atom_center_p1=None,
+        atom_center_p2=None,
         atom_res_p1=None,
         atom_res_p2=None,
         atom_rad_p1=None,
         atom_rad_p2=None,
-        rand_rot1=None,
-        rand_rot2=None,
+        rand_rot_p1=None,
+        rand_rot_p2=None,
         edge_labels_p1=None,
         edge_labels_p2=None  
           ):
@@ -115,8 +163,6 @@ class PairData(Data):
         self.xyz_p2 = xyz_p2
         self.face_p1 = face_p1
         self.face_p2 = face_p2
-        self.chemical_features_p1 = chemical_features_p1
-        self.chemical_features_p2 = chemical_features_p2
         self.labels_p1 = labels_p1
         self.labels_p2 = labels_p2
         self.edge_labels_p1=edge_labels_p1
@@ -129,14 +175,14 @@ class PairData(Data):
         self.atom_xyz_p2 = atom_xyz_p2
         self.atom_types_p1 = atom_types_p1
         self.atom_types_p2 = atom_types_p2
-        self.atom_center1 = atom_center1
-        self.atom_center2 = atom_center2
+        self.atom_center_p1 = atom_center_p1
+        self.atom_center_p2 = atom_center_p2
         self.atom_res_p1 = atom_res_p1
         self.atom_res_p2 = atom_res_p2
         self.atom_rad_p1 = atom_rad_p1
         self.atom_rad_p2 = atom_rad_p2
-        self.rand_rot1 = rand_rot1
-        self.rand_rot2 = rand_rot2
+        self.rand_rot_p1 = rand_rot_p1
+        self.rand_rot_p2 = rand_rot_p2
 
     def __inc__(self, key, value, *args, **kwargs):
         if ('face' in key) or ('edge' in key):
@@ -146,64 +192,56 @@ class PairData(Data):
                 return self.xyz_p2.size(0)
         else:
             return super(PairData, self).__inc__(key, value)
-
-
-
-def load_protein_pair(pdb_id, data_dir,use_surfaces=False, encoders=None):
-    """Loads a protein surface mesh and its features"""
-    pspl = pdb_id.split("_")
-
-    p1_id = pspl[0] + "_" + pspl[1]
-    p1 = load_protein_npy(p1_id, data_dir,use_surfaces=use_surfaces, encoders=encoders)
     
-    try:
-        p2_id = pspl[0] + "_" + pspl[2]
-    except IndexError:
-        p2={}
-    else:
-        p2 = load_protein_npy(p2_id, data_dir,use_surfaces=use_surfaces, encoders=encoders)
+    def from_dict(self, mapping, chain_idx=None):
+        if chain_idx==None:
+            lbl=''
+        else:   
+            lbl=f'_p{chain_idx}'  
 
+        for key in mapping:
+            self.__setitem__(key+lbl,mapping[key])
 
-    protein_pair_data = PairData(
-        xyz_p1=p1.get("xyz"),
-        xyz_p2=p2.get("xyz"),
-        face_p1=p1.get("face"),
-        face_p2=p2.get("face"),
-        chemical_features_p1=p1.get("chemical_features"),
-        chemical_features_p2=p2.get("chemical_features"),
-        labels_p1=p1.get("iface_labels"),
-        labels_p2=p2.get("iface_labels"),
-        normals_p1=p1.get("normals"),
-        normals_p2=p2.get("normals"),
-        atom_xyz_p1=p1.get("atom_coords"),
-        atom_xyz_p2=p2.get("atom_coords"),
-        atom_types_p1=p1.get("atom_types"),
-        atom_types_p2=p2.get("atom_types"),
-        atom_res_p1=p1.get("atom_resnames"),
-        atom_res_p2=p2.get("atom_resnames"),
-        atom_rad_p1=p1.get("atom_rad"),
-        atom_rad_p2=p2.get("atom_rad")
-    )
-    return protein_pair_data
+    def to_dict(self, chain_idx=None):
 
+        if chain_idx==None:
+            return self._store.to_dict()
+        else:
+            P = {}
+            lbl=f'_p{chain_idx}'
+            for key in self.keys:
+                if lbl in key:
+                    P[key.replace(lbl,'')] = self.__getitem__(key)
+            return P
+        
 
 class NpiDataset(InMemoryDataset):
 
 
-    def __init__(self, root, list_file, encoders, prefix='', use_surfaces=True,
+    def __init__(self, root, list_file, encoders, prefix='',
         transform=None, pre_transform=None, pre_filter=None):
         
-        with open(list_file) as f_tr:
-            self.list = f_tr.read().splitlines()
+        if isinstance(list_file,list):
+            self.list = list_file
+            self.name=prefix
+        else:
+            with open(list_file) as f_tr:
+                self.list = f_tr.read().splitlines()
+            self.name=prefix+list_file.split('/')[-1].split('.')[0]
 
-        self.name=prefix+list_file.split('/')[-1].split('.')[0]
         self.encoders=encoders
-        self.use_surfaces=use_surfaces
         
         super(NpiDataset, self).__init__(root, transform, pre_transform,pre_filter)
 
-        self.data, self.slices = torch.load(self.processed_paths[0], map_location='cpu')
+        self.data, self.slices = torch.load(self.processed_paths[0], map_location='cuda')
+        if isinstance(list_file,list):
+            for i in self.processed_file_names():
+                os.remove(self.processed_dir+i)
     
+    @property
+    def raw_file_names(self):
+        file_names = [f'{x.split("_")[0]}.pdb' for x in self.list]
+        return file_names
 
     @property
     def processed_file_names(self):
@@ -213,23 +251,58 @@ class NpiDataset(InMemoryDataset):
         ]
 
         return file_names
+    
+    def download(self):
+        for pdb_id in [x.split('_')[0] for x in self.list]:
+            protonated_file = Path(f'{self.raw_dir}/{pdb_id}.pdb')
+            if not protonated_file.exists():
+                # Download pdb 
+                pdbl = PDBList()
+                pdb_filename = pdbl.retrieve_pdb_file(pdb_id, pdir=tmp_dir,
+                                                      file_format='pdb')
+                if True:
+                    protonate(pdb_filename, protonated_file)
+                else:
+                    os.rename(pdb_filename, protonated_file)
+
+    def load_single(self, idx):
+
+        protein_pair = PairData()   
+        pspl=idx.split('_')
+        parser = PDBParser(QUIET=True)
+        
+        try:
+            structure = parser.get_structure('sample', f'{self.raw_dir}/{pspl[0]}.pdb')
+            modified=find_modified_residues(f'{self.raw_dir}/{pspl[0]}.pdb')
+            
+            p1=load_structure_np(structure, chain_ids=pspl[1], modified=modified)
+            p1 = encode_npy(p1, encoders=self.encoders)
+            protein_pair.from_dict(p1, chain_idx=1)
+
+            if len(pspl)==3 and pspl[2]!='':
+                p2=load_structure_np(structure, chain_ids=pspl[2], modified=modified)
+                p2 = encode_npy(p2, encoders=self.encoders)
+                protein_pair.from_dict(p2, chain_idx=2)
+
+        except:
+            print(f'##! Skipping non-existing files for {idx}' )
+            protein_pair=None
+        return protein_pair
 
     def process(self):
         
         print('# Loading npy files', self.name)
 
-        protein_dir = str(Path(self.root))+'/raw/01-benchmark_surfaces_npy/'
         processed_dataset=[]
         processed_idx=[]
-        for idx in tqdm(self.list):
-            try:
-                protein_pair = load_protein_pair(idx, protein_dir, use_surfaces=self.use_surfaces, 
-                    encoders=self.encoders)
-            except FileNotFoundError:
-                print(f'##! Skipping non-existing files for {idx}' )
-                continue
-            processed_dataset.append(protein_pair)
-            processed_idx.append(idx)
+
+        #with Pool(4) as p:
+        #    processed_dataset = list(tqdm(p.imap(self.load_single, self.list), total=len(self.list)))
+        processed_dataset = [self.load_single(x) for x in tqdm(self.list)]
+
+        processed_idx=[idx for i, idx in enumerate(self.list) if processed_dataset[i]!=None]
+        processed_dataset=[x for x in processed_dataset if x!=None]
+
         if self.pre_transform is not None:
 
             print('Preprocessing files', self.name)
@@ -263,37 +336,31 @@ class SurfacePrecompute(object):
         P1 = {}
         P1["atom_xyz"] = protein_pair.atom_xyz_p1
         P1["atom_rad"] = protein_pair.atom_rad_p1
-        P1['atom_xyz_batch']=torch.zeros(P1['atom_xyz'].shape[0], dtype=torch.int).to(self.args.device)
-        if self.args.random_rotation:
-            R1 = tensor(Rotation.random().as_matrix())
-            atom_center1 = P1["atom_xyz"].mean(dim=-2, keepdim=True)
-            P1['atom_xyz']=torch.matmul(R1, P1['atom_xyz'].T).T.contiguous()-atom_center1 
-            self.preprocess_surface(P1)
-            P1['xyz']=torch.matmul(R1.T, (P1['xyz']+atom_center1).T).T.contiguous()
-            P1['normals']=torch.matmul(R1.T, P1['normals'].T).T.contiguous()
+        if 'atom_xyz_p1_batch' in protein_pair.keys:
+            P1['atom_xyz_batch']=protein_pair.atom_xyz_p1_batch
         else:
-            self.preprocess_surface(P1)
-        protein_pair.gen_xyz_p1 = P1["xyz"]
-        protein_pair.gen_normals_p1 = P1["normals"]
-        protein_pair.gen_face_p1 = P1.get("face")
+            P1['atom_xyz_batch']=torch.zeros(P1['atom_xyz'].shape[0], dtype=torch.int).to(P1['atom_xyz'].device)
+        self.preprocess_surface(P1)
+        protein_pair.xyz_p1 = P1["xyz"]
+        protein_pair.normals_p1 = P1["normals"]
+        protein_pair.face_p1 = P1.get("face")
+        if 'atom_xyz_p1_batch' in protein_pair.keys:
+            protein_pair.xyz_p1_batch=P1['xyz_batch']
 
         if not self.args.single_protein:
             P2 = {}
             P2["atom_xyz"] = protein_pair.atom_xyz_p2
             P2["atom_rad"] = protein_pair.atom_rad_p2
-            P2['atom_xyz_batch']=torch.zeros(P2['atom_xyz'].shape[0], dtype=torch.int).to(self.args.device)
-            if self.args.random_rotation:
-                R2 = tensor(Rotation.random().as_matrix())
-                atom_center2 = P2["atom_xyz"].mean(dim=-2, keepdim=True)
-                P2['atom_xyz']=torch.matmul(R2, P2['atom_xyz'].T).T.contiguous()-atom_center2 
-                self.preprocess_surface(P2)
-                P2['xyz']=torch.matmul(R2.T, (P2['xyz']+atom_center2).T).T.contiguous() 
-                P2['normals']=torch.matmul(R2.T, P2['normals'].T).T.contiguous()
+            if 'atom_xyz_p2_batch' in protein_pair.keys:
+                P2['atom_xyz_batch']=protein_pair.atom_xyz_p2_batch
             else:
-                self.preprocess_surface(P2)      
-            protein_pair.gen_xyz_p2 = P2["xyz"]
-            protein_pair.gen_normals_p2 = P2["normals"]
-            protein_pair.gen_face_p2 = P2.get("face")
+                P2['atom_xyz_batch']=torch.zeros(P2['atom_xyz'].shape[0], dtype=torch.int).to(P2['atom_xyz'].device)
+            self.preprocess_surface(P2)      
+            protein_pair.xyz_p2 = P2["xyz"]
+            protein_pair.normals_p2 = P2["normals"]
+            protein_pair.face_p2 = P2.get("face")
+            if 'atom_xyz_p2_batch' in protein_pair.keys:
+                protein_pair.xyz_p2_batch=P2['xyz_batch']
         return protein_pair
 
 
@@ -318,49 +385,6 @@ def get_threshold_labels(queries,batch_queries,source,batch_source,labels, thres
 
     return query_labels
 
-class TransferSurface(object):
-    r"""Relabel surface points by outsource mesh"""
-
-    def __init__(self, single_protein=True, threshold=2.0):
-        self.threshold=threshold
-        self.single=single_protein
-        self.relabel_list=['labels','chemical_features']
-        self.surface_list=['xyz','normals','face']
-
-    def __call__(self, protein_pair):
-
-        if 'xyz_p1' in protein_pair.keys:
-            for key in self.relabel_list:
-                if f'{key}_p1' in protein_pair.keys:
-                    query_labels=get_threshold_labels(queries = protein_pair.gen_xyz_p1,
-                                                      batch_queries = None,
-                                                      source = protein_pair.xyz_p1,
-                                                      batch_source = None,
-                                                      labels = protein_pair.__getitem__(f'{key}_p1'),
-                                                      threshold=self.threshold)
-                    protein_pair.__setitem__(f'{key}_p1',query_labels.detach())
-
-        if not self.single:
-            if 'xyz_p2' in protein_pair.keys:
-                for key in self.relabel_list:
-                    if f'{key}_p2' in protein_pair.keys:
-                        query_labels=get_threshold_labels(queries = protein_pair.gen_xyz_p2,
-                                                          batch_queries = None,
-                                                          source = protein_pair.xyz_p2,
-                                                          batch_source = None,
-                                                          labels = protein_pair.__getitem__(f'{key}_p2'),
-                                                          threshold=self.threshold)
-                        protein_pair.__setitem__(f'{key}_p2',query_labels.detach())
-
-        #remove old surfaces and set new
-        for key in protein_pair.keys:
-            if key[:-3] in self.surface_list:
-                protein_pair.__delitem__(key)
-        for key in protein_pair.keys:        
-            if key[:4]=='gen_':
-                protein_pair.__setitem__(key[4:],protein_pair.__getitem__(key))
-                protein_pair.__delitem__(key)
-        return protein_pair
 
 class LabelsFromAtoms(object):
     r"""Label surface points by complementary atom labels"""
@@ -372,7 +396,7 @@ class LabelsFromAtoms(object):
     def __call__(self, protein_pair):
 
         if protein_pair.atom_xyz_p2.shape[0]==0:
-            query_labels=torch.zeros(queries.shape[0])
+            query_labels=torch.zeros(protein_pair.xyz_p1.shape[0])
         else:
             query_labels=get_threshold_labels(
                 queries = protein_pair.xyz_p1,
@@ -384,8 +408,8 @@ class LabelsFromAtoms(object):
         protein_pair.labels_p1 = query_labels.detach()
 
         if not self.single:        
-            if source.shape[0]==0:
-                query_labels=torch.zeros(queries.shape[0])
+            if protein_pair.atom_xyz_p1.shape[0]==0:
+                query_labels=torch.zeros(protein_pair.xyz_p2.shape[0])
             else:
                 query_labels=get_threshold_labels(
                     queries = protein_pair.xyz_p2,
@@ -439,11 +463,10 @@ class GenerateMatchingLabels(object):
 class RemoveSecondProtein(object):
     r"""Remove second protein information"""
 
-
     def __call__(self, protein_pair):
 
         for key in protein_pair.keys:
-            if key[-3:]=='_p2':
+            if '_p2' in key:
                 protein_pair.__delitem__(key)
 
         return protein_pair
@@ -461,17 +484,23 @@ class RandomRotationPairAtoms(object):
         R1 = torch.FloatTensor(Rotation.random().as_matrix()).to(data.xyz_p1.device)
         if self.as_single:
             R2=R1
+            for key in data.keys: 
+                if (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p1':
+                    size=data.__getitem__(key).shape[0]
+                    to_rotate=torch.cat([data.__getitem__(key),data.__getitem__(key[:-1]+'2')], dim=0)
+                    to_rotate=torch.matmul(R1, to_rotate.T).T
+                    data.__setitem__(key,to_rotate[:size])
+                    data.__setitem__(key[:-1]+'2',to_rotate[size:])
         else:
             R2 = torch.FloatTensor(Rotation.random().as_matrix()).to(data.xyz_p2.device)
-
+            for key in data.keys: 
+                if (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p1':
+                    data.__setitem__(key,torch.matmul(R1, data.__getitem__(key).T).T)
+                elif (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p2':
+                    data.__setitem__(key,torch.matmul(R2, data.__getitem__(key).T).T)
+                    data.rand_rot2 = R2
+                    
         data.rand_rot1 = R1
-
-        for key in data.keys: 
-            if (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p1':
-                data.__setitem__(key,torch.matmul(R1, data.__getitem__(key).T).T)
-            elif (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p2':
-                data.__setitem__(key,torch.matmul(R1, data.__getitem__(key).T).T)
-                data.rand_rot2 = R2
           
         return data
 
@@ -503,9 +532,9 @@ class CenterPairAtoms(object):
         data.atom_center1 = atom_center1
 
         for key in data.keys: 
-            if (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p1':
+            if ('xyz' in key) and key[-3:]=='_p1':
                 data.__setitem__(key, data.__getitem__(key) - atom_center1)
-            elif (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p2':
+            elif ('xyz' in key) and key[-3:]=='_p2':
                 data.__setitem__(key, data.__getitem__(key) - atom_center2)
                 data.atom_center2 = atom_center2
 

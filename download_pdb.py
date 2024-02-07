@@ -10,8 +10,10 @@ from pathlib import Path
 import argparse
 from tqdm import tqdm
 
-sys.path.append(os.path.dirname(os.path.realpath(__file__)))
-from convert_pdb2npy import load_structure_np
+import numpy as np
+from pathlib import Path
+from tqdm import tqdm
+from Bio.PDB import *
 
 
 parser = argparse.ArgumentParser(description="Arguments")
@@ -22,8 +24,9 @@ parser.add_argument(
     "--pdb_list", type=str,default='', help="Path to a text file that includes a list of PDB codes along with chains, example 1ABC_A_B", required=False
 )
 parser.add_argument(
-    "--save_res", type=bool,default=False, help="Whether to save residue names for each atom"
-)
+    "--save_npys", type=bool ,default=False, help="Whether to save atom coordinates and names as npy files")
+
+
 
 tmp_dir = Path('/home/domain/tmp')
 pdb_dir = Path('/home/domain/data/geraseva/masif/data/masif_npi/data_preparation/00-raw_pdbs')
@@ -51,6 +54,39 @@ def find_modified_amino_acids(path):
             res_set.remove(res)
     return res_set
 
+def load_structure_np(fname, center):
+    """Loads a .ply mesh to return a point cloud and connectivity."""
+    # Load the data
+    parser = PDBParser()
+    structure = parser.get_structure("structure", fname)
+    atoms = structure.get_atoms()
+
+    coords = []
+    types = []
+    res=[]
+    for atom in atoms:
+        coords.append(atom.get_coord())
+        types.append(atom.get_name())
+        res.append(atom.get_parent().get_resname())
+
+    coords = np.stack(coords)
+    types_array = np.array(types)
+    res=np.array(res)
+
+    # Normalize the coordinates, as specified by the user:
+    if center:
+        coords = coords - np.mean(coords, axis=0, keepdims=True)
+        
+    return {"xyz": coords, "types": types_array, "resnames": res}
+
+
+def convert_pdbs(pdb_dir, npy_dir):
+    print("Converting PDBs")
+    for p in tqdm(pdb_dir.glob("*.pdb")):
+        protein = load_structure_np(p, center=False)
+        np.save(npy_dir / (p.stem + "_atomxyz.npy"), protein["xyz"])
+        np.save(npy_dir / (p.stem + "_atomtypes.npy"), protein["types"])
+        np.save(npy_dir / (p.stem + "_resnames.npy"), protein["resnames"])       
 
 def extractPDB(
     infilename, outfilename, chain_ids=None 
@@ -112,7 +148,7 @@ def protonate(in_pdb_file, out_pdb_file):
 
 
 
-def get_single(pdb_id: str,chains: list, save_res: bool, prot=True):
+def get_single(pdb_id: str,chains: list, prot=True):
     protonated_file = pdb_dir/f"{pdb_id}.pdb"
     if not protonated_file.exists():
         # Download pdb 
@@ -125,7 +161,7 @@ def get_single(pdb_id: str,chains: list, save_res: bool, prot=True):
     pdb_filename = protonated_file
 
     # Extract chains of interest.
-    p=[]
+    p={}
     for chain in chains:
         out_filename = pdb_dir/f"{pdb_id}_{chain}.pdb"
         try:
@@ -133,12 +169,7 @@ def get_single(pdb_id: str,chains: list, save_res: bool, prot=True):
             protein = load_structure_np(out_filename,center=False)
         except:
             print('Fail to extract', pdb_id, chain)
-            continue
-        np.save(npy_dir / f"{pdb_id}_{chain}_atomxyz", protein["xyz"])
-        np.save(npy_dir / f"{pdb_id}_{chain}_atomtypes", protein["types"])
-        if save_res:
-            np.save(npy_dir / f"{pdb_id}_{chain}_resnames", protein["resnames"])
-        p.append(protein)
+        p[chain]=protein
     return p
 
 
@@ -148,7 +179,7 @@ if __name__ == '__main__':
         pdb_id = args.pdb.split('_')
         chains = pdb_id[1:]
         pdb_id = pdb_id[0]
-        get_single(pdb_id,chains, args.save_res)
+        get_single(pdb_id,chains)
 
     elif args.pdb_list != '':
         with open(args.pdb_list) as f:
@@ -157,6 +188,12 @@ if __name__ == '__main__':
            pdb_id = pdb_id.split('_')
            chains = pdb_id[1:]
            pdb_id = pdb_id[0]
-           get_single(pdb_id,chains, args.save_res)
+           p=get_single(pdb_id,chains, args.save_res)
+           if args.save_npys:
+               for chain in p:
+                   np.save(npy_dir / f"{pdb_id}_{chain}_atomxyz", p[chain]["xyz"])
+                   np.save(npy_dir / f"{pdb_id}_{chain}_atomtypes", p[chain]["types"])
+                   np.save(npy_dir / f"{pdb_id}_{chain}_resnames", p[chain]["resnames"])
+               
     else:
         raise ValueError('Must specify PDB or PDB list') 

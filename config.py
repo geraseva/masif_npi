@@ -1,8 +1,62 @@
-# from https://github.com/FreyrS/dMaSIF
+import torch
+from pathlib import Path
+import os
+import pykeops
+import warnings
+
+
+tmp_dir = Path('/tmp')
+pdb_dir = Path('./datasets/raw')
+npy_dir = Path('./datasets/raw/npys')
+
+def initialize(args):
+
+    torch.autograd.set_detect_anomaly(False)
+    torch.set_num_threads(4)
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.deterministic = True
+
+    try:
+        pykeops.set_bin_folder(f'.cache/pykeops{pykeops.__version__}/{os.uname().nodename}/')
+    except AttributeError:
+        pykeops.set_build_folder(f'.cache/pykeops{pykeops.__version__}/{os.uname().nodename}/')
+
+    warnings.filterwarnings("ignore") 
+
+    if args.device=='cpu':
+        os.environ['CUDA_VISIBLE_DEVICES']=''
+
+    if not torch.cuda.is_available():
+        args.device='cpu'
+        print('Switch to cpu')
+
+    if args.seed!=None:
+        torch.manual_seed(args.seed)
+        np.random.seed(args.seed)
+
+    if args.device!='cpu':
+        if args.seed!=None:
+            torch.cuda.manual_seed_all(args.seed)
+        torch.cuda.set_device(args.device)
+
+    return args
+
+
+
+def pass_function():
+    pass 
+
+tensor = torch.FloatTensor if torch.cuda.is_available() else torch.cuda.FloatTensor
+inttensor = torch.LongTensor if torch.cuda.is_available() else torch.cuda.LongTensor
 
 import numpy as np
-import torch
-from pykeops.torch import LazyTensor
+
+def numpy(x): 
+    return x.detach().cpu().numpy()
+
+
+
+# from https://github.com/FreyrS/dMaSIF
 
 def ranges_slices(batch):
     """Helper function for the diagonal ranges function."""

@@ -13,7 +13,7 @@ from geometry_processing import (
     atoms_to_points_normals,
 )
 from helper import *
-from benchmark_models import dMaSIFConv_seg
+from geometry_processing import dMaSIFConv_seg
 
 # create Adam optimizer class from https://github.com/lucidrains/lion-pytorch
 
@@ -575,7 +575,6 @@ class dMaSIF(nn.Module):
         features = self.dropout(self.features(P))
         P["input_features"] = features
         
-        synchronize() 
         conv_time = time.time()
 
         # Ours:
@@ -597,14 +596,12 @@ class dMaSIF(nn.Module):
                 )
             P["embedding_2"] = self.conv2(features)
 
-        synchronize()
         conv_time = time.time()-conv_time
         memory_usage = torch.cuda.max_memory_allocated()
 
         return conv_time, memory_usage
 
     def preprocess_surface(self, P):
-        synchronize() 
         surf_time = time.time()
 
         P["xyz"], P["normals"], P["xyz_batch"] = atoms_to_points_normals(
@@ -616,7 +613,6 @@ class dMaSIF(nn.Module):
             distance=self.args.distance
         )
 
-        synchronize()
         surf_time = time.time()-surf_time
 
         return surf_time

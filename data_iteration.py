@@ -3,14 +3,9 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.metrics import roc_auc_score
-from pathlib import Path
-import math
 from tqdm import tqdm
-from scipy.spatial.transform import Rotation
-from geometry_processing import save_vtk
-import time
+
 import gc
-import warnings 
 from helper import *
 
 class FocalLoss(nn.Module):
@@ -24,8 +19,8 @@ class FocalLoss(nn.Module):
                  reduction: str = 'none') -> None:
         super(FocalLoss, self).__init__()
         self.alpha: float = alpha
-        self.gamma: Optional[float] = gamma
-        self.reduction: Optional[str] = reduction
+        self.gamma: float = gamma
+        self.reduction: str = reduction
         self.eps: float = 1e-6
 
     def forward(
@@ -176,18 +171,6 @@ def compute_loss(args, P1, P2):
 
     return loss, preds_concat, labels_concat
 
-def process_single(protein_pair, chain_idx=1):
-    """Turn the PyG data object into a dict."""
-
-    P = {}
-    lbl=f'_p{chain_idx}'
-    for key in protein_pair.keys:
-        if lbl in key:
-            P[key.replace(lbl,'')] = protein_pair.__getitem__(key)
-        
-    return P
-
-
 def extract_single(P_batch, number):
     P = {}  # First and second proteins
     batch = P_batch["xyz_batch"] == number
@@ -195,11 +178,17 @@ def extract_single(P_batch, number):
 
     for key in P_batch.keys():
         if 'atom' in key:
-            P[key] = P_batch.__getitem__(key)[batch_atoms]
-        elif ('face' in key) or ('edge' in key):
-            continue
+            if ('face' in key) or ('edge' in key):
+                P[key] = P_batch.__getitem__(key)
+                P[key] = P[key][batch_atoms[P[key][:,0]],:]
+            else:
+                P[key] = P_batch.__getitem__(key)[batch_atoms]
         else:
-            P[key] = P_batch.__getitem__(key)[batch]
+            if ('face' in key) or ('edge' in key):
+                P[key] = P_batch.__getitem__(key)
+                P[key] = P[key][batch[P[key][:,0]],:]
+            else:
+                P[key] = P_batch.__getitem__(key)[batch]
     return P
 
 
@@ -211,7 +200,6 @@ def iterate(
     test=False,
     save_path=None,
     pdb_ids=None,
-    epoch_number=None,
 ):
 
     if test:
@@ -225,22 +213,19 @@ def iterate(
     info = []
     total_processed_pairs = 0
     # Loop over one epoch:
-    for it, protein_pair in enumerate(
-        tqdm(dataset)
-    ):  # , desc="Test " if test else "Train")):
-        
+    for protein_pair in tqdm(dataset):  
+
         if save_path is not None:
             batch_ids = pdb_ids[
                 total_processed_pairs : total_processed_pairs + args.batch_size
             ]
             total_processed_pairs += args.batch_size
-        protein_pair.to(args.device)
 
         if not test:
             optimizer.zero_grad()
 
-        P1_batch = process_single(protein_pair, chain_idx=1)
-        P2_batch = None if args.single_protein else process_single(protein_pair, chain_idx=2)
+        P1_batch = protein_pair.to_dict(chain_idx=1)
+        P2_batch = None if args.single_protein else  protein_pair.to_dict(chain_idx=2)
  
         outputs = net(P1_batch, P2_batch)
 

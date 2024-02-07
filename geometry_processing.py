@@ -1,8 +1,8 @@
+# from https://github.com/FreyrS/dMaSIF
+
 import numpy as np
-from math import pi
 import torch
 from pykeops.torch import LazyTensor
-from plyfile import PlyData, PlyElement
 from helper import diagonal_ranges
 import torch.nn as nn
 import torch.nn.functional as F
@@ -11,75 +11,7 @@ from pykeops.torch.cluster import grid_cluster, cluster_ranges_centroids, from_m
 from math import pi, sqrt
 
 
-# Input-Output for tests =======================================================
-
-import os
-
-from pyvtk import PolyData, PointData, CellData, Scalars, Vectors, VtkData, PointData
-
-
-def save_vtk(
-    fname, xyz, triangles=None, values=None, vectors=None, triangle_values=None
-):
-    """Saves a point cloud or triangle mesh as a .vtk file.
-
-    Files can be opened with Paraview or displayed using the PyVista library.
-
-    Args:
-        fname (string): filename.
-        xyz (Tensor): (N,3) point cloud or vertices.
-        triangles (integer Tensor, optional): (T,3) mesh connectivity. Defaults to None.
-        values (Tensor, optional): (N,D) values, supported by the vertices. Defaults to None.
-        vectors (Tensor, optional): (N,3) vectors, supported by the vertices. Defaults to None.
-        triangle_values (Tensor, optional): (T,D) values, supported by the triangles. Defaults to None.
-    """
-
-    # Encode the points/vertices as a VTK structure:
-    if triangles is None:  # Point cloud
-        structure = PolyData(points=numpy(xyz), vertices=np.arange(len(xyz)))
-    else:  # Surface mesh
-        structure = PolyData(points=numpy(xyz), polygons=numpy(triangles))
-
-    data = [structure]
-    pointdata, celldata = [], []
-
-    # Point values - one channel per column of the `values` array:
-    if values is not None:
-        values = numpy(values)
-        if len(values.shape) == 1:
-            values = values[:, None]
-        features = values.T
-        pointdata += [
-            Scalars(f, name=f"features_{i:02d}") for i, f in enumerate(features)
-        ]
-
-    # Point vectors - one vector per point:
-    if vectors is not None:
-        pointdata += [Vectors(numpy(vectors), name="vectors")]
-
-    # Store in the VTK object:
-    if pointdata != []:
-        pointdata = PointData(*pointdata)
-        data.append(pointdata)
-
-    # Triangle values - one channel per column of the `triangle_values` array:
-    if triangle_values is not None:
-        triangle_values = numpy(triangle_values)
-        if len(triangle_values.shape) == 1:
-            triangle_values = triangle_values[:, None]
-        features = triangle_values.T
-        celldata += [
-            Scalars(f, name=f"features_{i:02d}") for i, f in enumerate(features)
-        ]
-
-        celldata = CellData(*celldata)
-        data.append(celldata)
-
-    #  Write to hard drive:
-    vtk = VtkData(*data)
-    os.makedirs(os.path.dirname(fname), exist_ok=True)
-    vtk.tofile(fname)
-
+from helper import diagonal_ranges
 
 # On-the-fly generation of the surfaces ========================================
 
@@ -813,3 +745,133 @@ class dMaSIFConv(nn.Module):
         features = features[0].transpose(1, 0).contiguous()
 
         return features
+
+
+
+class dMaSIFConv_seg(torch.nn.Module):
+    def __init__(self, args, in_channels, out_channels, n_layers, radius=9.0):
+        super(dMaSIFConv_seg, self).__init__()
+
+        self.name = "dMaSIFConv_seg_keops"
+        self.radius = radius
+        self.I, self.O = in_channels, out_channels
+
+        self.layers = nn.ModuleList(
+            [dMaSIFConv(self.I, self.O, radius, self.O)]
+            + [dMaSIFConv(self.O, self.O, radius, self.O) for i in range(n_layers - 1)]
+        )
+
+        self.linear_layers = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.Linear(self.O, self.O), nn.ReLU(), nn.Linear(self.O, self.O)
+                )
+                for i in range(n_layers)
+            ]
+        )
+
+        self.linear_transform = nn.ModuleList(
+            [nn.Linear(self.I, self.O)]
+            + [nn.Linear(self.O, self.O) for i in range(n_layers - 1)]
+        )
+
+    def forward(self, features):
+        # Lab: (B,), Pos: (N, 3), Batch: (N,)
+        points, nuv, ranges = self.points, self.nuv, self.ranges
+        x = features
+        for i, layer in enumerate(self.layers):
+            x_i = layer(points, nuv, x, ranges)
+            x_i = self.linear_layers[i](x_i)
+            x = self.linear_transform[i](x)
+            x = x + x_i
+
+        return x
+
+    def load_mesh(self, xyz, triangles=None, normals=None, weights=None, batch=None):
+        """Loads the geometry of a triangle mesh.
+
+        Input arguments:
+        - xyz, a point cloud encoded as an (N, 3) Tensor.
+        - triangles, a connectivity matrix encoded as an (N, 3) integer tensor.
+        - weights, importance weights for the orientation estimation, encoded as an (N, 1) Tensor.
+        - radius, the scale used to estimate the local normals.
+        - a batch vector, following PyTorch_Geometric's conventions.
+
+        The routine updates the model attributes:
+        - points, i.e. the point cloud itself,
+        - nuv, a local oriented basis in R^3 for every point,
+        - ranges, custom KeOps syntax to implement batch processing.
+        """
+
+        # 1. Save the vertices for later use in the convolutions ---------------
+        self.points = xyz
+        self.batch = batch
+        self.ranges = diagonal_ranges(
+            batch
+        )  # KeOps support for heterogeneous batch processing
+        self.triangles = triangles
+        self.normals = normals
+        self.weights = weights
+
+        # 2. Estimate the normals and tangent frame ----------------------------
+        # Normalize the scale:
+        points = xyz / self.radius
+
+        # Normals and local areas:
+        if normals is None:
+            normals, areas = mesh_normals_areas(points, triangles, 0.5, batch)
+        tangent_bases = tangent_vectors(normals)  # Tangent basis (N, 2, 3)
+
+        # 3. Steer the tangent bases according to the gradient of "weights" ----
+
+        # 3.a) Encoding as KeOps LazyTensors:
+        # Orientation scores:
+        weights_j = LazyTensor(weights.view(1, -1, 1))  # (1, N, 1)
+        # Vertices:
+        x_i = LazyTensor(points[:, None, :])  # (N, 1, 3)
+        x_j = LazyTensor(points[None, :, :])  # (1, N, 3)
+        # Normals:
+        n_i = LazyTensor(normals[:, None, :])  # (N, 1, 3)
+        n_j = LazyTensor(normals[None, :, :])  # (1, N, 3)
+        # Tangent basis:
+        uv_i = LazyTensor(tangent_bases.view(-1, 1, 6))  # (N, 1, 6)
+
+        # 3.b) Pseudo-geodesic window:
+        # Pseudo-geodesic squared distance:
+        rho2_ij = ((x_j - x_i) ** 2).sum(-1) * ((2 - (n_i | n_j)) ** 2)  # (N, N, 1)
+        # Gaussian window:
+        window_ij = (-rho2_ij).exp()  # (N, N, 1)
+
+        # 3.c) Coordinates in the (u, v) basis - not oriented yet:
+        X_ij = uv_i.matvecmult(x_j - x_i)  # (N, N, 2)
+
+        # 3.d) Local average in the tangent plane:
+        orientation_weight_ij = window_ij * weights_j  # (N, N, 1)
+        orientation_vector_ij = orientation_weight_ij * X_ij  # (N, N, 2)
+
+        # Support for heterogeneous batch processing:
+        orientation_vector_ij.ranges = self.ranges  # Block-diagonal sparsity mask
+
+        orientation_vector_i = orientation_vector_ij.sum(dim=1)  # (N, 2)
+        orientation_vector_i = (
+            orientation_vector_i + 1e-5
+        )  # Just in case someone's alone...
+
+        # 3.e) Normalize stuff:
+        orientation_vector_i = F.normalize(orientation_vector_i, p=2, dim=-1)  #  (N, 2)
+        ex_i, ey_i = (
+            orientation_vector_i[:, 0][:, None],
+            orientation_vector_i[:, 1][:, None],
+        )  # (N,1)
+
+        # 3.f) Re-orient the (u,v) basis:
+        uv_i = tangent_bases  # (N, 2, 3)
+        u_i, v_i = uv_i[:, 0, :], uv_i[:, 1, :]  # (N, 3)
+        tangent_bases = torch.cat(
+            (ex_i * u_i + ey_i * v_i, -ey_i * u_i + ex_i * v_i), dim=1
+        ).contiguous()  # (N, 6)
+
+        # 4. Store the local 3D frame as an attribute --------------------------
+        self.nuv = torch.cat(
+            (normals.view(-1, 1, 3), tangent_bases.view(-1, 2, 3)), dim=1
+        )

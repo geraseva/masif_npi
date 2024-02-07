@@ -1,10 +1,10 @@
 
-import os, sys
+import os
 from Arguments import parse_train
 args, net_args = parse_train()
 
-if args.device=='cpu':
-    os.environ['CUDA_VISIBLE_DEVICES']=''
+from config import *
+args = initialize(args)
 
 import numpy as np
 import torch
@@ -17,30 +17,25 @@ from argparse import Namespace
 
 import gc
 
-if args.device!='cpu':
-    torch.cuda.set_device(args.device)
-    if not torch.cuda.is_available():
-        args.device='cpu'
-        print('Switch to cpu')
-
 from data import *
 from model import dMaSIF, Lion
 from data_iteration import iterate
-from helper import *
-
-initialize(device=args.device, seed=args.seed)
 
 print(f'# Start {args.mode}')
 print('## Arguments:',args)
 
 model_path = "models/" + args.experiment_name
-if args.mode=='inference':
+if args.mode=='inference' or args.restart_training:
     with open(model_path[:model_path.index('_epoch')]+'_args.json', 'r') as f:
         net_args=Namespace(**json.load(f))
 
 net = dMaSIF(net_args)
 net = net.to(args.device)
 starting_epoch = 0
+#optimizer = torch.optim.Adam(net.parameters(), lr=3e-4, amsgrad=True)
+optimizer = Lion(net.parameters(), lr=1e-4)
+best_loss = 1e10 
+
 
 if args.mode=='inference':
     net.load_state_dict(
@@ -76,9 +71,7 @@ transformations = (
     else Compose([])
 )
 
-pre_transformations=[SurfacePrecompute(net.preprocess_surface, args),
-                     TransferSurface(single_protein=args.single_protein,
-                                     threshold=args.threshold )]
+pre_transformations=[SurfacePrecompute(net.preprocess_surface, args)]
 if args.search:
     pre_transformations.append(GenerateMatchingLabels(args.threshold))
 elif not args.use_surfaces:
@@ -97,10 +90,10 @@ if args.mode=='train':
     elif args.search:
         prefix=f'search_{args.na.lower()}_'
     
-    full_dataset = NpiDataset(args.data_dir, args.training_list, use_surfaces=args.use_surfaces,
+    full_dataset = NpiDataset(args.data_dir, args.training_list,
                 transform=transformations, pre_transform=pre_transformations, 
                 encoders=args.encoders, prefix=prefix, pre_filter=iface_valid_filter)
-    test_dataset = NpiDataset(args.data_dir, args.testing_list, use_surfaces=args.use_surfaces,
+    test_dataset = NpiDataset(args.data_dir, args.testing_list,
                 transform=transformations, pre_transform=pre_transformations,
                 encoders=args.encoders, prefix=prefix, pre_filter=iface_valid_filter)
 
@@ -124,8 +117,7 @@ if args.mode=='train':
 else:
     print('# Loading testing set')   
     if args.single_pdb != "":
-        test_dataset = [load_protein_pair(args.single_pdb, args.data_dir,
-            use_surfaces=args.use_surfaces,encoders=args.encoders)]
+        test_dataset = [load_protein_pair(args.single_pdb, args.data_dir,encoders=args.encoders)]
         test_pdb_ids = [args.single_pdb]
     elif args.pdb_list != "":
         with open(args.pdb_list) as f:
@@ -134,8 +126,7 @@ else:
         test_pdb_ids=[]
         for pdb in pdb_l:
             try:
-                test_dataset.append(load_protein_pair(pdb, args.data_dir,
-                    use_surfaces=args.use_surfaces,encoders=args.encoders))
+                test_dataset.append(load_protein_pair(pdb, args.data_dir,encoders=args.encoders))
             except FileNotFoundError:
                 print(f'##! Skipping non-existing files for {pdb}' )
             else:
@@ -152,10 +143,6 @@ else:
 if args.mode=='train':
 
     print('# Start training')
-
-    #optimizer = torch.optim.Adam(net.parameters(), lr=3e-4, amsgrad=True)
-    optimizer = Lion(net.parameters(), lr=1e-4)
-    best_loss = 1e10 
 
     if not Path("models/").exists():
         Path("models/").mkdir(exist_ok=False)
@@ -188,7 +175,6 @@ if args.mode=='train':
                 optimizer,
                 args,
                 test=test,
-                epoch_number=i,
             )
 
             for key, val in info.items():

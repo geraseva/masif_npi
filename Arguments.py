@@ -121,8 +121,6 @@ train_inf_parser.add_argument("--seed", type=int, default=42, help="Random seed"
 
 train_inf_parser.add_argument( "--single_protein", help="Use single protein in a pair or both",
                               type=lambda x: (str(x).lower() == 'true'))
-train_inf_parser.add_argument( "--use_surfaces", type=lambda x: (str(x).lower() == 'true'),
-    help="Use precomputed surfaces and labels")
 train_inf_parser.add_argument( "--random_rotation", type=lambda x: (str(x).lower() == 'true'),
     help="Move proteins to center and add random rotation", default=None)
 train_inf_parser.add_argument(
@@ -211,20 +209,20 @@ def parse_train():
     if args.encoders=={}:
         if args.npi:
             if args.na=='DNA':
-                args.encoders['residue_encoders']=[{'name': 'atom_resnames',
+                args.encoders['residue_encoders']=[{'name': 'atom_res',
                                                  'encoder': {'DA':1, "DG": 2, "DC":3, "DT":4, '-':0}
                                                  }]
             elif args.na=='RNA':
-                args.encoders['residue_encoders']=[{'name': 'atom_resnames',
+                args.encoders['residue_encoders']=[{'name': 'atom_res',
                                                  'encoder': {'A':1, "G": 2, "C":3, "U":4, '-':0 }
                                                  }]
             elif args.na=='NA':
-                args.encoders['residue_encoders']=[{'name': 'atom_resnames',
+                args.encoders['residue_encoders']=[{'name': 'atom_res',
                                                  'encoder': {'DA':1, "DG": 2, "DC":3, "DT":4, 
                                                  'A':1, "G": 2, "C":3, "U":4, '-':0 }
                                                  }]
         else:
-            args.encoders['residue_encoders']=[{'name': 'atom_resnames',
+            args.encoders['residue_encoders']=[{'name': 'atom_res',
                                                  'encoder': {'-':1 }
                                             }]
         if args.search and args.na!='protein': 
@@ -245,6 +243,8 @@ def parse_train():
             args.random_rotation=True
         if args.devices==None:
             args.devices=[args.device]
+        elif args.device==None:
+            args.device=args.devices[0]
         if net_args.atom_dims==None:
             if args.search and args.na!='protein': 
                 net_args.atom_dims=6
@@ -289,19 +289,14 @@ def parse_train():
             elif args.na=='NA':
                 args.testing_list="lists/testing_npi.txt"
         if args.data_dir==None:
-            if args.na=='protein':
-                args.data_dir='surface_data/'
-            else:
-                args.data_dir='npi_dataset/'
+            args.data_dir='datasets/'
+
     else:
         net_args=None
         if args.random_rotation==None:
             args.random_rotation=False
         if args.data_dir==None:
-            if args.na=='protein':
-                args.data_dir='surface_data/raw/01-benchmark_surfaces_npy/'
-            else:
-                args.data_dir='npi_dataset/raw/01-benchmark_surfaces_npy/'
+            args.data_dir='npi_dataset/raw/npys/'
 
 
     if args.threshold==None:
@@ -319,10 +314,5 @@ def parse_train():
             args.loss='FocalLoss'
         else:
             args.loss='BCELoss'  
-    if args.use_surfaces==None:
-        if args.na=='protein':
-            args.use_surfaces=True
-        else:
-            args.use_surfaces=False
-
+    
     return args, net_args

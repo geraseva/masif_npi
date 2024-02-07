@@ -9,14 +9,13 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 #from lion_pytorch import Lion
 from pathlib import Path
-from argparse import Namespace
 import gc
-import pykeops
 import os
 import warnings
 from data import *
 from model import dMaSIF, Lion
 from data_iteration import iterate
+from config import *
 import time
 
 def ddp_setup(rank, rank_list):
@@ -73,17 +72,10 @@ class Trainer:
                 self.optimizer,
                 self.args,
                 test=test,
-                epoch_number=epoch,
             )
     
             for key, val in info.items():
-                if key in [
-                    "Loss",
-                    "ROC-AUC",
-                    "Distance/Positives",
-                    "Distance/Negatives",
-                    "Matching ROC-AUC",
-                ]:
+                if key in ["Loss", "ROC-AUC"]:
                     print(key ,suffix , epoch, np.nanmean(val))
     
             if dataset_type == "Validation":  # Store validation loss for saving the model
@@ -94,11 +86,11 @@ class Trainer:
                     torch.save(
                         {
                             "epoch": epoch,
-                            "model_state_dict": net.module.state_dict(),
-                            "optimizer_state_dict": optimizer.state_dict(),
-                            "best_loss": best_loss,
+                            "model_state_dict": self.model.module.state_dict(),
+                            "optimizer_state_dict": self.optimizer.state_dict(),
+                            "best_loss": val_loss,
                         },
-                        f"models/{self.args.experiment_name}_epoch{epoch}"
+                        f"models/{self.args.experiment_name}"
                     )
                     self.best_loss = val_loss
 
@@ -116,6 +108,8 @@ def load_train_objs(args, net_args):
     optimizer = Lion(net.parameters(), lr=1e-4)
     #optimizer = torch.optim.Adam(net.parameters(), lr=3e-4, amsgrad=True)
     starting_epoch = 0
+    best_loss = 1e10 
+
 
     if args.restart_training != "":
         checkpoint = torch.load("models/" + args.restart_training, map_location=args.devices[0])
@@ -144,12 +138,10 @@ def load_train_objs(args, net_args):
         else Compose([])
     )
 
-    pre_transformations=[SurfacePrecompute(net.preprocess_surface, args),
-                         TransferSurface(single_protein=args.single_protein,
-                                         threshold=args.threshold )]
+    pre_transformations=[SurfacePrecompute(net.preprocess_surface, args)]
     if args.search:
         pre_transformations.append(GenerateMatchingLabels(args.threshold))
-    elif not args.use_surfaces:
+    else:
         pre_transformations.append(LabelsFromAtoms(single_protein=args.single_protein,
                                                    threshold=args.threshold))
     if args.single_protein:
@@ -164,10 +156,10 @@ def load_train_objs(args, net_args):
     elif args.search:
         prefix=f'search_{args.na.lower()}_'
     
-    full_dataset = NpiDataset(args.data_dir, args.training_list, use_surfaces=args.use_surfaces,
+    full_dataset = NpiDataset(args.data_dir, args.training_list,
                 transform=transformations, pre_transform=pre_transformations, 
                 encoders=args.encoders, prefix=prefix, pre_filter=iface_valid_filter)
-    test_dataset = NpiDataset(args.data_dir, args.testing_list, use_surfaces=args.use_surfaces,
+    test_dataset = NpiDataset(args.data_dir, args.testing_list,
                 transform=transformations, pre_transform=pre_transformations,
                 encoders=args.encoders, prefix=prefix, pre_filter=iface_valid_filter)
 
@@ -225,6 +217,8 @@ if __name__ == "__main__":
 
     from Arguments import parse_train
     args, net_args = parse_train()
+    
+    args=initialize(args)
 
     rank_list=[x for x in args.devices if x!='cpu']
 
