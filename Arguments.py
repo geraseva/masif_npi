@@ -127,7 +127,7 @@ train_inf_parser.add_argument(
     "--data_dir", type=str, help="Numpy data storage"
 )
 train_inf_parser.add_argument(
-    "--device", type=str, default="cpu", help="Which gpu/cpu to train on"
+    "--device", type=str, default=None, help="Which gpu/cpu to train on"
 )
 train_inf_parser.add_argument(
     "--devices", type=str, default=None, nargs='*',
@@ -242,6 +242,8 @@ def parse_train():
         if args.random_rotation==None:
             args.random_rotation=True
         if args.devices==None:
+            if args.device==None:
+                args.device='cuda:0'
             args.devices=[args.device]
         elif args.device==None:
             args.device=args.devices[0]

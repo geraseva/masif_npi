@@ -188,7 +188,7 @@ def prepare_dataloader(dataset , args):
         dataset[1], batch_size=args.batch_size, follow_batch=batch_vars,
         shuffle=False, sampler=DistributedSampler(dataset[1]))
     test_loader = DataLoader(
-        dataset[2], batch_size=args.batch_size, follow_batch=batch_vars,
+        dataset[2], batch_size=1, follow_batch=batch_vars,
         shuffle=False, sampler=DistributedSampler(dataset[2]))
 
     return train_loader, val_loader, test_loader

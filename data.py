@@ -119,7 +119,7 @@ def encode_npy(p, encoders):
             o=max(la['encoder'].values())+1 if la['name'] in list_to_onehot else 0
             protein_data[la['name']] = encode_labels(p['atom_resnames'],la['encoder'],o)    
 
-    mask=torch.ones(protein_data['atom_xyz'].shape[0], dtype=bool)
+    mask=torch.ones(protein_data['atom_xyz'].shape[0], dtype=bool) # to mask H atoms, for example
     for key in protein_data:
         if 'mask' in key:
             mask=mask*protein_data.pop[key]

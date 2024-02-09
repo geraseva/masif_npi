@@ -6,7 +6,8 @@ from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
 
 import gc
-from helper import *
+from config import *
+
 
 class FocalLoss(nn.Module):
     r"""Criterion that computes Focal loss.

@@ -12,7 +12,7 @@ from geometry_processing import (
     tangent_vectors,
     atoms_to_points_normals,
 )
-from helper import *
+from config import *
 from geometry_processing import dMaSIFConv_seg
 
 # create Adam optimizer class from https://github.com/lucidrains/lion-pytorch
