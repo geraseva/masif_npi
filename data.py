@@ -492,7 +492,7 @@ class RandomRotationPairAtoms(object):
                     data.__setitem__(key,to_rotate[:size])
                     data.__setitem__(key[:-1]+'2',to_rotate[size:])
         else:
-            R2 = torch.FloatTensor(Rotation.random().as_matrix()).to(data.xyz_p2.device)
+            R2 = torch.FloatTensor(Rotation.random().as_matrix()).to(data.xyz_p1.device)
             for key in data.keys: 
                 if (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p1':
                     data.__setitem__(key,torch.matmul(R1, data.__getitem__(key).T).T)
@@ -550,6 +550,7 @@ def iface_valid_filter(protein_pair):
         (torch.sum(labels1) < 0.75 * len(labels1))
         and (torch.sum(labels1) > 30)
     )
+    valid1 *= (labels1.shape[0]<30000)
     
     labels2 = protein_pair.get('labels_p2')
     if labels2 != None:
@@ -558,6 +559,7 @@ def iface_valid_filter(protein_pair):
             (torch.sum(labels2) < 0.75 * len(labels2))
             and (torch.sum(labels2) > 30)
         )
+        valid2 *= (labels2.shape[0]<30000)
     else:
         valid2=True
 

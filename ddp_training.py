@@ -81,7 +81,7 @@ class Trainer:
             if dataset_type == "Validation":  # Store validation loss for saving the model
                 val_loss = np.nanmean(info["Loss"])
         
-                if val_loss < self.best_loss and self.gpu_id==0:
+                if val_loss < self.best_loss and self.gpu_id==self.args.devices[0]:
                     print("## Validation loss {}, saving model".format(val_loss))
                     torch.save(
                         {
@@ -221,6 +221,7 @@ if __name__ == "__main__":
     args=initialize(args)
 
     rank_list=[x for x in args.devices if x!='cpu']
+    args.devices=rank_list
 
     print(f'# Start {args.mode}')
     print('## Arguments:',args)

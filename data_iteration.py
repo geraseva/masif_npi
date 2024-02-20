@@ -221,7 +221,8 @@ def iterate(
                 total_processed_pairs : total_processed_pairs + args.batch_size
             ]
             total_processed_pairs += args.batch_size
-
+        protein_pair.to(args.device)
+        
         if not test:
             optimizer.zero_grad()
 
