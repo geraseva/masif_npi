@@ -5,8 +5,20 @@ import torch.nn.functional as F
 from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
 
+from torch.utils.data import random_split
+from torch_geometric.loader import DataLoader
+from torch_geometric.transforms import Compose
+from torch.utils.data.distributed import DistributedSampler
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.distributed import init_process_group, destroy_process_group
+#from lion_pytorch import Lion
+import os
+import warnings
+from data import *
+from model import dMaSIF, Lion
+
 import gc
-from config import *
+from helper import *
 
 
 class FocalLoss(nn.Module):
@@ -80,7 +92,7 @@ def focal_loss(
 
 def save_protein_batch_single(protein_pair_id, P, save_path, pdb_idx):
 
-    protein_pair_id = protein_pair_id.split("_")
+    protein_pair_id = protein_pair_id.split(" ")
     pdb_id = protein_pair_id[0] + "_" + protein_pair_id[pdb_idx]
 
     xyz = P["xyz"]
@@ -90,11 +102,11 @@ def save_protein_batch_single(protein_pair_id, P, save_path, pdb_idx):
     embedding = P["embedding_1"] if pdb_idx == 1 else P["embedding_2"]
     emb_id = 1 if pdb_idx == 1 else 2
 
-    if "iface_preds" in P.keys():
-        if P["iface_preds"].shape[1]==1:
-            predictions = torch.sigmoid(P["iface_preds"])
+    if "preds" in P.keys():
+        if P["preds"].shape[1]==1:
+            predictions = torch.sigmoid(P["preds"])
         else: 
-            predictions = F.softmax(P["iface_preds"], dim=1)
+            predictions = F.softmax(P["preds"], dim=1)
     else:
         predictions=torch.zeros((xyz.shape[0],1))
 
@@ -105,8 +117,8 @@ def save_protein_batch_single(protein_pair_id, P, save_path, pdb_idx):
     
     coloring = torch.cat([inputs.to('cpu'), embedding.to('cpu'), predictions.to('cpu'), labels.to('cpu')], axis=1)
 
-    np.save(str(save_path / pdb_id) + "_predcoords", numpy(xyz))
-    np.save(str(save_path / pdb_id) + f"_predfeatures_emb{emb_id}", numpy(coloring))
+    np.save(f'{save_path}/{pdb_id}_predcoords', numpy(xyz))
+    np.save(f"{save_path}/{pdb_id}_predfeatures_emb{emb_id}", numpy(coloring))
 
 
 def compute_loss(args, P1, P2):
@@ -141,9 +153,9 @@ def compute_loss(args, P1, P2):
         neg_labels = torch.zeros_like(neg_preds)
 
     else:
-        pos_preds = P1["iface_preds"][P1["labels"] > 0]
+        pos_preds = P1["preds"][P1["labels"] > 0]
         pos_labels = P1["labels"][P1["labels"] > 0]
-        neg_preds = P1["iface_preds"][P1["labels"] == 0]
+        neg_preds = P1["preds"][P1["labels"] == 0]
         neg_labels = P1["labels"][P1["labels"] == 0]
 
     n_points_sample = len(pos_labels)
@@ -181,13 +193,15 @@ def extract_single(P_batch, number):
         if 'atom' in key:
             if ('face' in key) or ('edge' in key):
                 P[key] = P_batch.__getitem__(key)
-                P[key] = P[key][batch_atoms[P[key][:,0]],:]
+                vert=P[key][:,0] if len(P[key].shape)==2 else P[key]
+                P[key] = P[key][batch_atoms[vert]]
             else:
                 P[key] = P_batch.__getitem__(key)[batch_atoms]
         else:
             if ('face' in key) or ('edge' in key):
                 P[key] = P_batch.__getitem__(key)
-                P[key] = P[key][batch[P[key][:,0]],:]
+                vert=P[key][:,0] if len(P[key].shape)==2 else P[key]
+                P[key] = P[key][batch[vert]]
             else:
                 P[key] = P_batch.__getitem__(key)[batch]
     return P
@@ -216,7 +230,7 @@ def iterate(
     # Loop over one epoch:
     for protein_pair in tqdm(dataset):  
 
-        if save_path is not None:
+        if pdb_ids is not None:
             batch_ids = pdb_ids[
                 total_processed_pairs : total_processed_pairs + args.batch_size
             ]
@@ -230,14 +244,23 @@ def iterate(
         P2_batch = None if args.single_protein else  protein_pair.to_dict(chain_idx=2)
  
         outputs = net(P1_batch, P2_batch)
+        info_dict=dict(
+                       {
+                        'surf_time': outputs["surf_time"],
+                        "conv_time": outputs["conv_time"],
+                        "memory_usage": outputs["memory_usage"],
+                       },
+                       # Merge the "R_values" dict into "info", with a prefix:
+                       **{"R_values/" + k: v for k, v in outputs["R_values"].items()}
+                      )
 
         P1_batch = outputs["P1"]
         P2_batch = outputs["P2"]
 
         if P1_batch["labels"] is not None:
             loss, sampled_preds, sampled_labels = compute_loss(args, P1_batch, P2_batch)
+            info_dict["Loss"]=loss.detach().item()
         else:
-            loss = torch.tensor(0.0)
             sampled_preds = None
             sampled_labels = None
 
@@ -258,35 +281,24 @@ def iterate(
                 a=np.rint(numpy(sampled_labels.view(-1)))
                 b=numpy(sampled_preds.view(-1))
                 roc_auc = roc_auc_score(a, b)
-        else:
-            roc_auc = 0.0
+            info_dict["ROC-AUC"]=roc_auc
            
-        info.append(
-            dict(
-                {
-                    "Loss": loss.detach().item(),
-                    "ROC-AUC": roc_auc,
-                    'surf_time': outputs["surf_time"],
-                    "conv_time": outputs["conv_time"],
-                    "memory_usage": outputs["memory_usage"],
-                },
-                # Merge the "R_values" dict into "info", with a prefix:
-                **{"R_values/" + k: v for k, v in outputs["R_values"].items()}
-                )
-        )
+        info.append(info_dict)
 
-        if save_path is not None:
-            for protein_it in range(args.batch_size):
-                P1 = extract_single(P1_batch, protein_it)
-                P2 = None if args.single_protein else extract_single(P2_batch, protein_it)
+        if pdb_ids is not None:
+            info[-1]['PDB IDs']=batch_ids
+            if save_path is not None:
+                for i, pdb_id in enumerate(batch_ids):
+                    P1 = extract_single(P1_batch, i)
+                    P2 = None if args.single_protein else extract_single(P2_batch, i)
 
-                save_protein_batch_single(
-                    batch_ids[protein_it], P1, save_path, pdb_idx=1
-                )
-                if not args.single_protein:
                     save_protein_batch_single(
-                        batch_ids[protein_it], P2, save_path, pdb_idx=2
+                        pdb_id, P1, save_path, pdb_idx=1
                     )
+                    if not args.single_protein:
+                        save_protein_batch_single(
+                            pdb_id, P2, save_path, pdb_idx=2
+                        )
 
 
     # Turn a list of dicts into a dict of lists:
@@ -304,5 +316,194 @@ def iterate(
     # Final post-processing:
     return info
 
+def ddp_setup(rank, rank_list):
 
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "12355"
+    init_process_group(backend="nccl", rank=rank, world_size=len(rank_list))
+    torch.cuda.set_device(rank_list[rank])
+
+class Trainer:
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        train_loader: DataLoader,
+        val_loader: DataLoader,
+        test_loader: DataLoader,
+        optimizer: torch.optim.Optimizer,
+        gpu_id: int,
+        args, 
+        best_loss = 1e10
+    ) -> None:
+        self.gpu_id = gpu_id
+        self.model = model.to(gpu_id)
+        self.train_loader = train_loader
+        self.val_loader = val_loader
+        self.test_loader = test_loader
+        self.optimizer = optimizer
+        self.model = DDP(model, device_ids=[gpu_id])
+        self.args = args
+        self.args.device=gpu_id
+        self.best_loss = best_loss 
+
+
+    def _run_epoch(self, epoch):
+
+        for dataset_type in ["Train", "Validation", "Test"]:
+            if dataset_type == "Train":
+                test = False
+            else:
+                test = True
+
+            suffix = dataset_type
+            if dataset_type == "Train":
+                dataloader = self.train_loader
+            elif dataset_type == "Validation":
+                dataloader = self.val_loader
+            elif dataset_type == "Test":
+                dataloader = self.test_loader
+            dataloader.sampler.set_epoch(epoch)
+
+            # Perform one pass through the data:
+            info = iterate(
+                self.model,
+                dataloader,
+                self.optimizer,
+                self.args,
+                test=test,
+            )
+    
+            for key, val in info.items():
+                if key in ["Loss", "ROC-AUC"]:
+                    print(key ,suffix , epoch, np.nanmean(val))
+    
+            if dataset_type == "Validation":  # Store validation loss for saving the model
+                val_loss = np.nanmean(info["Loss"])
+        
+                if val_loss < self.best_loss and self.gpu_id==self.args.devices[0]:
+                    print("## Validation loss {}, saving model".format(val_loss))
+                    torch.save(
+                        {
+                            "epoch": epoch,
+                            "model_state_dict": self.model.module.state_dict(),
+                            "optimizer_state_dict": self.optimizer.state_dict(),
+                            "best_loss": val_loss,
+                        },
+                        f"models/{self.args.experiment_name}"
+                    )
+                    self.best_loss = val_loss
+
+
+    def train(self, starting_epoch: int):
+    
+        print('# Start training')
+        for i in range(starting_epoch, self.args.n_epochs):
+            self._run_epoch(i)
+            
+
+def load_train_objs(args, net_args):
+
+    net = dMaSIF(net_args)
+    optimizer = Lion(net.parameters(), lr=1e-4)
+    #optimizer = torch.optim.Adam(net.parameters(), lr=3e-4, amsgrad=True)
+    starting_epoch = 0
+    best_loss = 1e10 
+
+
+    if args.restart_training != "":
+        checkpoint = torch.load("models/" + args.restart_training, map_location=args.devices[0])
+        net.load_state_dict(checkpoint["model_state_dict"])
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        starting_epoch = checkpoint["epoch"]+1
+        best_loss = checkpoint["best_loss"]
+
+    elif args.transfer_learning != "":
+        checkpoint = torch.load("models/" + args.transfer_learning, map_location=args.devices[0])
+        for module in checkpoint["model_state_dict"]:
+            try:
+                net[module].load_state_dict(checkpoint["model_state_dict"][module])
+                print('Loaded precomputed module',module)
+            except:
+                pass 
+
+    print('# Model loaded')
+    print('## Model arguments:',net_args)
+
+
+    transformations = (
+        Compose([CenterPairAtoms(as_single=args.search), 
+                 RandomRotationPairAtoms(as_single=args.search)])
+        if args.random_rotation
+        else Compose([])
+    )
+
+    pre_transformations=[SurfacePrecompute(net.preprocess_surface, args)]
+    if args.search:
+        pre_transformations.append(GenerateMatchingLabels(args.threshold))
+    else:
+        pre_transformations.append(LabelsFromAtoms(single_protein=args.single_protein,
+                                                   threshold=args.threshold))
+    if args.single_protein:
+        pre_transformations.append(RemoveSecondProtein())
+    pre_transformations=Compose(pre_transformations)
+
+    print('# Loading datasets')   
+    if args.site:
+        prefix=f'site_{args.na.lower()}_'
+    elif args.npi:
+        prefix=f'npi_{args.na.lower()}_'
+    elif args.search:
+        prefix=f'search_{args.na.lower()}_'
+    
+    full_dataset = NpiDataset(args.data_dir, args.training_list,
+                transform=transformations, pre_transform=pre_transformations, 
+                encoders=args.encoders, prefix=prefix, pre_filter=iface_valid_filter)
+    test_dataset = NpiDataset(args.data_dir, args.testing_list,
+                transform=transformations, pre_transform=pre_transformations,
+                encoders=args.encoders, prefix=prefix, pre_filter=iface_valid_filter)
+
+# Train/Validation split:
+    train_nsamples = len(full_dataset)
+    val_nsamples = int(train_nsamples * args.validation_fraction)
+    train_nsamples = train_nsamples - val_nsamples
+    train_dataset, val_dataset = random_split(
+        full_dataset, [train_nsamples, val_nsamples]
+    )
+    print('## Train nsamples:',train_nsamples)
+    print('## Val nsamples:',val_nsamples)
+    print('## Test nsamples:',len(test_dataset))
+
+    return (train_dataset,val_dataset,test_dataset), net, optimizer, starting_epoch, best_loss
+
+
+def train(rank: int, rank_list: int, args, dataset, net, optimizer, starting_epoch, best_loss):
+
+    warnings.simplefilter("ignore")
+    ddp_setup(rank, rank_list)
+
+    batch_vars = ["xyz_p1", "xyz_p2", "atom_xyz_p1", "atom_xyz_p2"]
+
+    train_loader = DataLoader(
+        dataset[0], batch_size=args.batch_size, follow_batch=batch_vars,
+        shuffle=False, sampler=DistributedSampler(dataset[0]))
+    val_loader = DataLoader(
+        dataset[1], batch_size=args.batch_size, follow_batch=batch_vars,
+        shuffle=False, sampler=DistributedSampler(dataset[1]))
+    test_loader = DataLoader(
+        dataset[2], batch_size=1, follow_batch=batch_vars,
+        shuffle=False, sampler=DistributedSampler(dataset[2]))
+
+
+    gc.collect()    
+    trainer = Trainer(model=net,
+                      train_loader=train_loader,
+                      val_loader=val_loader,
+                      test_loader=test_loader,
+                      optimizer=optimizer,
+                      gpu_id=rank_list[rank],
+                      args=args,
+                      best_loss=best_loss)
+    trainer.train(starting_epoch)
+
+    destroy_process_group()
 

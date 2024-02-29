@@ -12,7 +12,7 @@ from geometry_processing import (
     tangent_vectors,
     atoms_to_points_normals,
 )
-from config import *
+from helper import *
 from geometry_processing import dMaSIFConv_seg
 
 # create Adam optimizer class from https://github.com/lucidrains/lion-pytorch
@@ -638,7 +638,7 @@ class dMaSIF(nn.Module):
         R_values["conv"] = soft_dimension(P1P2["embedding_1"])
 
         if self.args.n_outputs>0:
-            P1P2["iface_preds"] = self.net_out(P1P2["embedding_1"])
+            P1P2["preds"] = self.net_out(P1P2["embedding_1"])
 
         if P2 is not None:
             P1, P2 = split_pair(P1P2)

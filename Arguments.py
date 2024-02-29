@@ -124,7 +124,7 @@ train_inf_parser.add_argument( "--single_protein", help="Use single protein in a
 train_inf_parser.add_argument( "--random_rotation", type=lambda x: (str(x).lower() == 'true'),
     help="Move proteins to center and add random rotation", default=None)
 train_inf_parser.add_argument(
-    "--data_dir", type=str, help="Numpy data storage"
+    "--data_dir", type=str, help="Where pdb files are stored"
 )
 train_inf_parser.add_argument(
     "--device", type=str, default=None, help="Which gpu/cpu to train on"
@@ -187,7 +187,16 @@ train_parser.add_argument(
 )
 
 inf_parser=subparsers.add_parser('inference',description="Inference parameters", parents=[train_inf_parser])
-
+inf_parser.add_argument(
+    "--protonate",
+    action='store_true',
+    help="Whether to protonate pdb files",
+)
+inf_parser.add_argument(
+    "--out_dir",
+    default=None,
+    type=str, help="Where to store output npy files"
+)
 set_group = inf_parser._action_groups[-1].add_mutually_exclusive_group(required=True)
 inf_parser._action_groups=inf_parser._action_groups[::-1]
 set_group.add_argument(
@@ -202,6 +211,7 @@ set_group.add_argument(
     default="",
     help="Which structures to do inference on",
 )
+
 
 def parse_train():
     args, _ = main_parser.parse_known_args()
@@ -237,16 +247,33 @@ def parse_train():
                                             {'name': 'atom_rad',
                                                  'encoder': {'H': 110, 'C': 170, 'N': 155, 'O': 152, '-': 180}
                                             }]
-    if args.mode=='train':
-        net_args, _ = net_parser.parse_known_args()
-        if args.random_rotation==None:
-            args.random_rotation=True
+    if args.threshold==None:
+        if args.search:
+            args.threshold=1 # distance between two surface points
+        else:
+            args.threshold=5 # distance between surface point and atom center
+    if args.single_protein==None:
+        if args.search:
+            args.single_protein=False
+        else:
+            args.single_protein=True
         if args.devices==None:
             if args.device==None:
                 args.device='cuda:0'
             args.devices=[args.device]
         elif args.device==None:
             args.device=args.devices[0]
+        if args.loss==None:  
+            if args.npi:
+                args.loss='FocalLoss'
+            else:
+                args.loss='BCELoss'  
+            
+    if args.mode=='train':
+        net_args, _ = net_parser.parse_known_args()
+        if args.random_rotation==None:
+            args.random_rotation=True
+
         if net_args.atom_dims==None:
             if args.search and args.na!='protein': 
                 net_args.atom_dims=6
@@ -267,10 +294,7 @@ def parse_train():
 
         if args.training_list==None:
             if args.na=='protein':
-                if not args.search:
-                    args.training_list='lists/training.txt'
-                else:
-                    args.training_list='lists/training_ppi.txt'
+                args.training_list='lists/training_ppi.txt'
             elif args.na=='DNA':
                 args.training_list="lists/training_dna.txt"
             elif args.na=='RNA':
@@ -280,10 +304,7 @@ def parse_train():
 
         if args.testing_list==None:
             if args.na=='protein':
-                if not args.search:
-                    args.testing_list="lists/testing.txt"
-                else:
-                    args.testing_list="lists/testing_ppi.txt"
+                args.testing_list="lists/testing_ppi.txt"
             elif args.na=='DNA':
                 args.testing_list="lists/testing_dna.txt"
             elif args.na=='RNA':
@@ -298,23 +319,9 @@ def parse_train():
         if args.random_rotation==None:
             args.random_rotation=False
         if args.data_dir==None:
-            args.data_dir='npi_dataset/raw/npys/'
-
-
-    if args.threshold==None:
-        if args.search:
-            args.threshold=1 # distance between two surface points
-        else:
-            args.threshold=5 # distance between surface point and atom center
-    if args.single_protein==None:
-        if args.search:
-            args.single_protein=False
-        else:
-            args.single_protein=True
-    if args.loss==None:  
-        if args.npi:
-            args.loss='FocalLoss'
-        else:
-            args.loss='BCELoss'  
+            args.data_dir='datasets/raw'
+        if args.out_dir is None:
+            args.out_dir='preds/'+args.experiment_name    
     
+
     return args, net_args

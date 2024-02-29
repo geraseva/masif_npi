@@ -14,6 +14,7 @@ from pykeops.torch import LazyTensor
 
 import os
 
+from helper import *
 from config import *
 
 PROTEIN_LETTERS = [x.upper() for x in IUPACData.protein_letters_3to1.keys()]
@@ -96,12 +97,13 @@ def encode_labels(labels,aa,onehot=0):
     return labels_enc
 
 def encode_npy(p, encoders):
-
+    
     if len(p)==0:
         return None
     list_to_onehot=['atom_types']
 
     protein_data={}
+
     protein_data['atom_xyz']=tensor(p['atom_xyz'])
 
     atom_types=[a[0] for a in p['atom_types']]
@@ -128,6 +130,27 @@ def encode_npy(p, encoders):
         protein_data[key]=protein_data[key][mask]
 
     return protein_data
+
+def load_protein_pair(filename, encoders, chains1, chains2=None):
+    protein_pair = PairData()   
+    parser = PDBParser(QUIET=True)
+        
+    try:
+        structure = parser.get_structure('sample', filename)
+        modified=find_modified_residues(filename)
+            
+        p1=load_structure_np(structure, chain_ids=chains1, modified=modified)
+        p1 = encode_npy(p1, encoders=encoders)
+        protein_pair.from_dict(p1, chain_idx=1)
+
+        if chains2 is not None and chains2!='':
+            p2=load_structure_np(structure, chain_ids=chains2, modified=modified)
+            p2 = encode_npy(p2, encoders=encoders)
+            protein_pair.from_dict(p2, chain_idx=2)
+
+    except:
+        protein_pair=None
+    return protein_pair
 
 
 class PairData(Data):
@@ -253,7 +276,7 @@ class NpiDataset(InMemoryDataset):
         return file_names
     
     def download(self):
-        for pdb_id in [x.split('_')[0] for x in self.list]:
+        for pdb_id in [x.split(' ')[0] for x in self.list]:
             protonated_file = Path(f'{self.raw_dir}/{pdb_id}.pdb')
             if not protonated_file.exists():
                 # Download pdb 
@@ -267,31 +290,18 @@ class NpiDataset(InMemoryDataset):
 
     def load_single(self, idx):
 
-        protein_pair = PairData()   
-        pspl=idx.split('_')
-        parser = PDBParser(QUIET=True)
-        
-        try:
-            structure = parser.get_structure('sample', f'{self.raw_dir}/{pspl[0]}.pdb')
-            modified=find_modified_residues(f'{self.raw_dir}/{pspl[0]}.pdb')
-            
-            p1=load_structure_np(structure, chain_ids=pspl[1], modified=modified)
-            p1 = encode_npy(p1, encoders=self.encoders)
-            protein_pair.from_dict(p1, chain_idx=1)
+        pspl=idx.split(' ')
 
-            if len(pspl)==3 and pspl[2]!='':
-                p2=load_structure_np(structure, chain_ids=pspl[2], modified=modified)
-                p2 = encode_npy(p2, encoders=self.encoders)
-                protein_pair.from_dict(p2, chain_idx=2)
-
-        except:
+        protein_pair=load_protein_pair(f'{self.raw_dir}/{pspl[0]}.pdb', 
+                                       self.encoders, pspl[1], pspl[2] if len(pspl)==3 else None)
+        if protein_pair is None:
             print(f'##! Skipping non-existing files for {idx}' )
-            protein_pair=None
+        
         return protein_pair
 
     def process(self):
         
-        print('# Loading npy files', self.name)
+        print('# Loading pdb files', self.name)
 
         processed_dataset=[]
         processed_idx=[]
@@ -299,7 +309,6 @@ class NpiDataset(InMemoryDataset):
         #with Pool(4) as p:
         #    processed_dataset = list(tqdm(p.imap(self.load_single, self.list), total=len(self.list)))
         processed_dataset = [self.load_single(x) for x in tqdm(self.list)]
-
         processed_idx=[idx for i, idx in enumerate(self.list) if processed_dataset[i]!=None]
         processed_dataset=[x for x in processed_dataset if x!=None]
 

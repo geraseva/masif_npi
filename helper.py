@@ -1,8 +1,15 @@
-# from https://github.com/FreyrS/dMaSIF
-
-import numpy as np
 import torch
-from pykeops.torch import LazyTensor
+
+def pass_function():
+    pass 
+
+tensor = torch.FloatTensor if not torch.cuda.is_available() else torch.cuda.FloatTensor
+inttensor = torch.LongTensor if not torch.cuda.is_available() else torch.cuda.LongTensor
+
+def numpy(x): 
+    return x.detach().cpu().numpy()
+
+# from https://github.com/FreyrS/dMaSIF
 
 def ranges_slices(batch):
     """Helper function for the diagonal ranges function."""

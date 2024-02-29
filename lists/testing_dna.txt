@@ -1,542 +1,542 @@
-7mwm_A_CD
-7mtl_AB_CD
-7odf_A_CEG
-7oa5_ABCDEFGH_IJKL
-7el1_A_CD
-7m99_ABCEFGH_I
-7m7n_A_PT
-7o0h_A_EF
-7egh_AB_XY
-7ef9_A_BC
-7nvv_7_NT
-7lw9_A_B
-7lma_ADH_C
-7lfq_A_B
-7kuf_AB_CD
-7kin_CDFM_OP
-7ade_afXY_KL
-7abs_A_BE
-7jtn_A_B
-7jqq_ABCDE_FG
-7cq4_AB_L
-6zz6_ABD_FG
-7jlg_A_CD
-6znp_A_C
-6xnx_ABCD_IJLMxy
-6xg8_AB_DE
-7c9o_ABC_DE
-7c9c_ABC_D
-6z8v_H_A
-6x9j_A_CD
-6x67_CD_EFGJKL
-6x1j_A_CD
-6wkr_CIJKMOQRS_H
-6whm_A_B
-6wg6_A_M
-6ycq_AB_CD
-6w6w_A_E
-6y93_AB_CD
-6lwd_A_BC
-6lty_AB_CD
-6lqf_A_BC
-6vae_A_S
-6v92_abcdefgh_ij
-6l9z_ABCDEFGHKLMNOPQRS_IJ
-6l8e_ABCD_GH
-6uwj_A_BC
-6tbz_A_BC
-6uso_A_EF
-6kqf_CDF_GH
-6sjb_BCD_X
-6sei_AC_E
-6puz_ABCD_EF
-6s85_ACD_EF
-6kbx_B_A
-6s3p_A_B
-6s16_AB_CDF
-6pbd_AB_XY
-6ryd_AB_CD
-6p7b_ABCD_EF
-6rwm_ABDEFIJLMN_QSTW
-6p5a_ABGH_CDEIJK
-6rui_ABQR_TU
-6p4f_AB_EF
-6p1a_AB_DE
-6p0c_A_BCD
-6ozf_A_C
-6rin_CDF_NT
-6rie_ABO_NT
-6on0_AB_CN
-6rar_I_BCD
-6od3_AB_WX
-6joo_A_CD
-6o8e_A_CD
-6qxf_BDFH_XY
-6o19_A_BC
-6qil_AB_EF
-6n9u_EH_T
-6n7i_ABCDE_T
-6irq_ABCD_EF
-6ir8_A_BC
-6mup_ABCDEFGHMN_IJ
-6mrj_ABCD_LM
-6mih_A_BG
-6mg1_AB_CD
-6mec_C_B
-6e94_A_CD
-6dww_A_BCD
-6dop_A_C
-6dnw_A_BC
-5zyu_A_E
-6dgd_A_WX
-6gis_AC_D
-6gh5_CDM_FG
-6ged_A_CD
-6d6r_ABHKM_O
-6gcf_AB_CD
-5zoe_A_BCD
-5zmd_AC_BD
-6cvq_A_DE
-5zln_AB_CDEF
-5zko_ACGH_BD
-6g3b_AB_D
-5zkm_A_B
-6crm_A_B
-5zgn_ABDE_GH
-6fwr_A_B
-6cg8_ABE_CF
-6fbq_AB_CD
-6fbc_A_BC
-6f1k_A_C
-6bek_A_BC
-6bd0_A_BC
-5yiw_A_DE
-6emy_AB_CDEF
-6el8_A_BC
-5yel_B_CD
-5ybb_DG_HI
-6asb_C_AB
-6ar1_A_B
-5y7q_A_CD
-5orq_A_B
-5oqp_AB_CD
-6ama_ABCDGHKLOPY_NR
-5ond_A_C
-5xzg_A_EF
-5odl_A_D
-5xxp_AB_EF
-5xvp_ABCDEF_GH
-5xs0_FG_YZ
-5o6u_BCDEF_HI
-5w0u_B_DG
-5xh7_A_CD
-5vfx_ABCD_IJKL
-5vc8_A_WX
-5v9x_A_B
-5nfv_A_BCD
-5v3j_E_AB
-5n9g_ABC_DE
-5n8o_A_C
-5usb_A_B
-5x2h_A_CD
-5x11_AB_IJ
-5wx9_A_B
-5uc6_A_B
-5mpf_AB_EF
-5mhj_AB_EF
-5tw1_DFJT_OP
-5gzb_A_BC
-5td5_A_C
-5t9j_A_CD
-5t5c_AB_CDEF
-5t01_AB_CD
-5gke_AB_CD
-5kl3_A_BC
-5kbj_AB_RW
-5k5q_ABCDEF_NP
-5k5l_EFG_ABCD
-5jlt_A_EF
-5jk0_ABCD_EFGH
-5j5p_AB_CDE
-5j37_ABCDE_FGHIJ
-5j3e_A_EF
-5iwi_ABCD_EFG
-5ip3_ABC_DEF
-5iff_AB_C
-5b2r_B_CD
-5ht2_AB_CD
-5hrt_A_B
-5hru_AB_C
-5hrb_A_DE
-5hr4_C_HI
-5hdn_A_EF
-5hch_A_B
-5haw_A_Z
-5h8w_A_E
-5fhd_A_C
-5fgp_A_B
-5fdk_AC_FGH
-5fd3_A_HI
-5fb2_A_B
-5f7q_CEJL_FK
-5fq5_B_CDE
-5f56_A_C
-5f0q_A_D
-5exh_C_AB
-5ed4_AB_CD
-5ean_A_B
-5dwa_AB_CD
-5ds9_AB_CD
-5dlo_A_B
-5dlj_ABCDEF_GH
-5deu_A_BC
-5dac_A_CD
-5d3g_A_E
-5cqq_A_CD
-5co8_AC_HRX
-5cl8_A_BC
-5ciy_A_CD
-5a3d_AB_CD
-5bpd_ABCD_EF
-4zyd_A_BC
-4zux_ABCDEFGHU_IJ
-4ztu_A_PT
-4zpk_AB_CD
-4zhn_A_B
-4zbn_AB_DE
-4z7k_AB_C
-4yoy_ACE_BDF
-4yj0_ABC_DE
-4yfu_A_BC
-4y60_C_AB
-4xzf_A_B
-4xrm_AB_LM
-4xqk_A_CD
-4x9j_A_BC
-4rul_A_B
-4wzw_A_BC
-4roc_AB_NT
-4rkh_CDEF_AB
-4wls_AB_UVXY
-4rdm_A_CD
-4r8p_ABCDEFGHL_IJ
-4ux5_AB_CD
-4r28_CD_XY
-4u7b_AB_CDEF
-4u0y_ABCD_EF
-4tzd_AD_GH
-4qtj_A_BC
-4qr9_AB_CD
-4qqw_A_B
-4uqm_A_BC
-4tqr_A_PT
-4pe8_A_B
-4par_ABCD_EFGH
-4py5_A_C
-4pu3_ABCD_PQ
-4pso_ABCD_EL
-4csa_C_G
-4pog_ABCDEF_XZ
-4ou6_ABCDE_L
-4oww_B_L
-4on0_AB_EF
-4ol8_AB_D
-4oi8_AB_EF
-3wpc_AB_EF
-4noe_ABCDE_F
-4ni7_A_B
-4ne1_KLQTUV_Ft
-4ncb_A_CDP
-4c8y_AB_C
-4n0o_A_B
-4mtd_ABCD_YZ
-4mgu_A_C
-4m9v_C_AB
-4lvi_A_BC
-4lup_A_B
-4bxx_AB_NT
-4lmg_AD_GH
-4lln_AB_GH
-4ljr_AB_CD
-4lb6_B_C
-4l5r_C_AB
-4l18_AB_CD
-4kyw_A_CDEF
-4jrp_A_C
-4jcy_AB_CD
-4izz_AB_CD
-4ix7_AB_CD
-3zi5_A_BC
-3zdb_A_X
-4i2o_AB_WX
-4ht4_A_B
-4hqu_A_C
-4hqe_AB_CD
-4hly_AB_CD
-4hkq_A_F
-4hf1_AB_CD
-4hc9_A_YZ
-4bbs_ABM_T
-4h8k_AB_D
-3vwb_A_BC
-4gnx_BC_K
-4glx_A_BCD
-4gle_A_BC
-4gjr_AB_GHIJ
-4gdf_AB_CD
-3vw4_A_CD
-4g92_ABC_DE
-4b21_A_XY
-4fcy_AB_CD
-4esj_A_CD
-4e0g_A_CD
-4aik_AB_CD
-3vea_AB_MN
-3upu_A_D
-3ugo_A_B
-3uby_AB_CD
-3u7f_B_X
-3u60_ABCDE_I
-3ted_A_BC
-3zvk_EFGH_XY
-3swp_ABCD_EF
-3sqi_A_BC
-3spd_AB_EF
-3sm4_ABC_DE
-3sjm_AB_CD
-3rmp_AC_EFGH
-3ra9_A_D
-3r8f_ABCD_E
-3qx3_AB_CDEF
-3qex_A_PT
-2y35_A_B
-3pvv_A_CD
-3pov_A_CD
-3po3_ABS_T
-3oym_A_CD
-2xro_ABEF_XY
-3osn_A_BC
-3osg_A_BC
-2xqc_AD_BCEF
-3on0_ABCD_P
-3od8_AB_IJ
-3o9x_AB_EF
-3oa6_AB_CDF
-3o3f_A_CD
-2xlk_B_D
-3ndh_AB_CD
-3n1i_A_B
-3mx4_AH_KL
-3mvd_ABCDEFGHKL_IJ
-3mln_AB_CD
-3mky_B_TU
-3lap_ABCDEF_GHIJKL
-3kxt_A_BC
-3aaf_AB_CD
-3kde_C_AB
-2wt7_AB_CD
-3jso_AB_CD
-3ikt_AB_CD
-3ih7_A_BC
-3iag_C_AB
-3hxo_A_B
-3hqf_A_BC
-2wiw_B_CD
-3h25_A_C
-3h0d_AB_CD
-3gz6_AB_CD
-3gp8_A_X
-3gox_AB_CD
-3gna_A_D
-3glg_ABCDE_KL
-2w7n_AB_EFGH
-3fdq_AB_CD
-3fde_A_DE
-3f2b_A_PT
-3eyi_AB_CD
-3erc_D_EI
-3er8_AD_EG
-2vye_AB_C
-3dvo_AB_EF
-2vy1_A_W
-2vs7_A_BC
-3coq_AB_DE
-2zhg_A_B
-2vla_A_LM
-3bsu_ABC_E
-3bs1_A_BC
-3brg_C_AB
-3bm3_AB_CD
-3bep_AB_CD
-3b39_A_C
-2ve9_ABC_IJ
-2r1j_LR_AB
-2z70_A_B
-2qsh_A_WY
-2qnf_AB_CDEF
-2z3x_ABC_DE
-2v1u_A_BC
-2py5_A_DJY
-2pfj_AB_YZ
-2p2r_A_B
-2p0j_AB_CD
-2ost_AB_YZ
-2ofi_A_BC
-2odi_A_CD
-2e52_AB_EG
-2o4a_A_BC
-2nq9_A_BCD
-2itl_AB_CW
-2isz_ABCD_EF
-2is6_AB_CD
-2ihn_A_CD
-2ih2_A_BC
-2i13_A_CD
-2i06_A_BC
-2hvr_A_CE
-2hax_AB_CD
-2h8c_B_WX
-2h7g_X_YZ
-2h27_A_BC
-2gxa_BCDEF_M
-2gig_AB_EF
-2g1p_AB_FG
-2fkc_A_CD
-2fio_AB_CD
-2fcc_A_CD
-2ezv_AB_FG
-2c5r_BF_YZ
-2bzf_A_BC
-2aor_AB_CD
-2a3v_ABCD_EFGH
-1zs4_ABCD_TU
-1zrf_AB_WXYZ
-2bnw_ABCD_EF
-1z1b_AB_CEFG
-1z19_AB_CDE
-2bgw_AB_CD
-1y8z_AB_CD
-1wte_AB_XY
-1wb9_AB_EF
-1xsd_A_B
-1xpx_A_C
-1xo0_AB_CD
-1xjv_A_B
-1x9m_A_CD
-1u8b_A_BCDE
-1u3e_M_ABC
-1w36_BC_Y
-1tez_A_IJ
-1t8e_AB_CD
-1sx5_AB_CDEF
-1sa3_A_CD
-1uut_A_C
-1rio_ABH_TU
-1rh6_B_CD
-1rff_AC_D
-1r71_AB_EFIJ
-1pp7_U_EF
-1p71_AB_CD
-1oup_B_CD
-1oe4_AB_EF
-1orn_A_BC
-1omh_A_B
-1odh_A_CD
-1nwq_AC_BD
-1j3e_A_BC
-1nh2_AC_EF
-1mw8_X_Y
-1mus_A_BC
-1msw_D_NT
-1mnn_A_BC
-1mje_A_C
-1m5r_A_CE
-1lwt_A_BC
-1lq1_CD_EF
-1l3l_BD_EG
-1kx5_ABCDEFGH_IJ
-1ksy_AC_DF
-1k78_ABI_CD
-1k4t_A_BCD
-1k3x_A_BC
-1gm5_A_XYZ
-1jko_C_AB
-1jey_AB_CD
-1h6f_AB_CD
-1jb7_AB_DG
-1ic8_AB_EF
-1iaw_AB_CDEF
-1i3j_A_BC
-1hlv_A_BC
-1flo_ABCD_EFGHIJKL
-1fiu_ABCD_EFGHIJKL
-1e3o_C_AB
-1f4k_AB_DE
-1f0v_A_M
-1c8c_A_BC
-1egw_AB_EF
-1dp7_P_D
-1dmu_A_F
-1b01_AB_EF
-1dc1_AB_CW
-1qna_A_CD
-1d02_AB_CD
-1cw0_A_MNO
-1cqt_AI_MN
-1qpz_A_M
-1cl8_A_B
-1cf7_AB_CD
-1b3t_AB_CD
-3pvi_AB_CD
-3bam_AB_CDE
-1bl0_A_BC
-1bg1_A_B
-1bdt_ABCD_EF
-1bc8_C_AB
-3orc_A_RS
-1a73_AB_CDEF
-1mjo_ABCD_FG
-1a3q_AB_CD
-1tc3_C_AB
-1fok_A_BC
-1jmc_A_B
-1ign_A_CD
-1gdt_AB_CDEF
-2drp_A_BC
-1pfi_B_CD
-2bop_A_B
-1brn_L_A
-1tro_AC_IJ
-2bpa_13_A
-7f49_A_B
-7ntu_B_EF
-7jtq_A_B
-6z8x_H_B
-6z8w_H_A
-6vug_A_E
-6u81_A_BC
-6u82_A_B
-6gn7_H_E
-6evv_H_E
-6bhj_AB_E
-6eo6_H_D
-6eo7_H_D
-5i42_A_E
-5i3u_AB_E
-5hto_ABDE_CF
-5hro_AB_E
-5hp1_AB_F
-5hlf_AB_F
-5ew2_H_DE
-5ew1_H_DE
-5cmx_H_A
-4ni9_AC_BD
-3zh2_ABCD_EG
-4i7y_H_D
-4hqx_A_C
-4dii_H_D
-4dih_H_D
-3qlp_H_D
-3hxq_A_B
-3dd2_H_B
-1hut_H_D
+7mwm A CD
+7mtl AB CD
+7odf A CEG
+7oa5 ABCDEFGH IJKL
+7el1 A CD
+7m99 ABCEFGH I
+7m7n A PT
+7o0h A EF
+7egh AB XY
+7ef9 A BC
+7nvv 7 NT
+7lw9 A B
+7lma ADH C
+7lfq A B
+7kuf AB CD
+7kin CDFM OP
+7ade afXY KL
+7abs A BE
+7jtn A B
+7jqq ABCDE FG
+7cq4 AB L
+6zz6 ABD FG
+7jlg A CD
+6znp A C
+6xnx ABCD IJLMxy
+6xg8 AB DE
+7c9o ABC DE
+7c9c ABC D
+6z8v H A
+6x9j A CD
+6x67 CD EFGJKL
+6x1j A CD
+6wkr CIJKMOQRS H
+6whm A B
+6wg6 A M
+6ycq AB CD
+6w6w A E
+6y93 AB CD
+6lwd A BC
+6lty AB CD
+6lqf A BC
+6vae A S
+6v92 abcdefgh ij
+6l9z ABCDEFGHKLMNOPQRS IJ
+6l8e ABCD GH
+6uwj A BC
+6tbz A BC
+6uso A EF
+6kqf CDF GH
+6sjb BCD X
+6sei AC E
+6puz ABCD EF
+6s85 ACD EF
+6kbx B A
+6s3p A B
+6s16 AB CDF
+6pbd AB XY
+6ryd AB CD
+6p7b ABCD EF
+6rwm ABDEFIJLMN QSTW
+6p5a ABGH CDEIJK
+6rui ABQR TU
+6p4f AB EF
+6p1a AB DE
+6p0c A BCD
+6ozf A C
+6rin CDF NT
+6rie ABO NT
+6on0 AB CN
+6rar I BCD
+6od3 AB WX
+6joo A CD
+6o8e A CD
+6qxf BDFH XY
+6o19 A BC
+6qil AB EF
+6n9u EH T
+6n7i ABCDE T
+6irq ABCD EF
+6ir8 A BC
+6mup ABCDEFGHMN IJ
+6mrj ABCD LM
+6mih A BG
+6mg1 AB CD
+6mec C B
+6e94 A CD
+6dww A BCD
+6dop A C
+6dnw A BC
+5zyu A E
+6dgd A WX
+6gis AC D
+6gh5 CDM FG
+6ged A CD
+6d6r ABHKM O
+6gcf AB CD
+5zoe A BCD
+5zmd AC BD
+6cvq A DE
+5zln AB CDEF
+5zko ACGH BD
+6g3b AB D
+5zkm A B
+6crm A B
+5zgn ABDE GH
+6fwr A B
+6cg8 ABE CF
+6fbq AB CD
+6fbc A BC
+6f1k A C
+6bek A BC
+6bd0 A BC
+5yiw A DE
+6emy AB CDEF
+6el8 A BC
+5yel B CD
+5ybb DG HI
+6asb C AB
+6ar1 A B
+5y7q A CD
+5orq A B
+5oqp AB CD
+6ama ABCDGHKLOPY NR
+5ond A C
+5xzg A EF
+5odl A D
+5xxp AB EF
+5xvp ABCDEF GH
+5xs0 FG YZ
+5o6u BCDEF HI
+5w0u B DG
+5xh7 A CD
+5vfx ABCD IJKL
+5vc8 A WX
+5v9x A B
+5nfv A BCD
+5v3j E AB
+5n9g ABC DE
+5n8o A C
+5usb A B
+5x2h A CD
+5x11 AB IJ
+5wx9 A B
+5uc6 A B
+5mpf AB EF
+5mhj AB EF
+5tw1 DFJT OP
+5gzb A BC
+5td5 A C
+5t9j A CD
+5t5c AB CDEF
+5t01 AB CD
+5gke AB CD
+5kl3 A BC
+5kbj AB RW
+5k5q ABCDEF NP
+5k5l EFG ABCD
+5jlt A EF
+5jk0 ABCD EFGH
+5j5p AB CDE
+5j37 ABCDE FGHIJ
+5j3e A EF
+5iwi ABCD EFG
+5ip3 ABC DEF
+5iff AB C
+5b2r B CD
+5ht2 AB CD
+5hrt A B
+5hru AB C
+5hrb A DE
+5hr4 C HI
+5hdn A EF
+5hch A B
+5haw A Z
+5h8w A E
+5fhd A C
+5fgp A B
+5fdk AC FGH
+5fd3 A HI
+5fb2 A B
+5f7q CEJL FK
+5fq5 B CDE
+5f56 A C
+5f0q A D
+5exh C AB
+5ed4 AB CD
+5ean A B
+5dwa AB CD
+5ds9 AB CD
+5dlo A B
+5dlj ABCDEF GH
+5deu A BC
+5dac A CD
+5d3g A E
+5cqq A CD
+5co8 AC HRX
+5cl8 A BC
+5ciy A CD
+5a3d AB CD
+5bpd ABCD EF
+4zyd A BC
+4zux ABCDEFGHU IJ
+4ztu A PT
+4zpk AB CD
+4zhn A B
+4zbn AB DE
+4z7k AB C
+4yoy ACE BDF
+4yj0 ABC DE
+4yfu A BC
+4y60 C AB
+4xzf A B
+4xrm AB LM
+4xqk A CD
+4x9j A BC
+4rul A B
+4wzw A BC
+4roc AB NT
+4rkh CDEF AB
+4wls AB UVXY
+4rdm A CD
+4r8p ABCDEFGHL IJ
+4ux5 AB CD
+4r28 CD XY
+4u7b AB CDEF
+4u0y ABCD EF
+4tzd AD GH
+4qtj A BC
+4qr9 AB CD
+4qqw A B
+4uqm A BC
+4tqr A PT
+4pe8 A B
+4par ABCD EFGH
+4py5 A C
+4pu3 ABCD PQ
+4pso ABCD EL
+4csa C G
+4pog ABCDEF XZ
+4ou6 ABCDE L
+4oww B L
+4on0 AB EF
+4ol8 AB D
+4oi8 AB EF
+3wpc AB EF
+4noe ABCDE F
+4ni7 A B
+4ne1 KLQTUV Ft
+4ncb A CDP
+4c8y AB C
+4n0o A B
+4mtd ABCD YZ
+4mgu A C
+4m9v C AB
+4lvi A BC
+4lup A B
+4bxx AB NT
+4lmg AD GH
+4lln AB GH
+4ljr AB CD
+4lb6 B C
+4l5r C AB
+4l18 AB CD
+4kyw A CDEF
+4jrp A C
+4jcy AB CD
+4izz AB CD
+4ix7 AB CD
+3zi5 A BC
+3zdb A X
+4i2o AB WX
+4ht4 A B
+4hqu A C
+4hqe AB CD
+4hly AB CD
+4hkq A F
+4hf1 AB CD
+4hc9 A YZ
+4bbs ABM T
+4h8k AB D
+3vwb A BC
+4gnx BC K
+4glx A BCD
+4gle A BC
+4gjr AB GHIJ
+4gdf AB CD
+3vw4 A CD
+4g92 ABC DE
+4b21 A XY
+4fcy AB CD
+4esj A CD
+4e0g A CD
+4aik AB CD
+3vea AB MN
+3upu A D
+3ugo A B
+3uby AB CD
+3u7f B X
+3u60 ABCDE I
+3ted A BC
+3zvk EFGH XY
+3swp ABCD EF
+3sqi A BC
+3spd AB EF
+3sm4 ABC DE
+3sjm AB CD
+3rmp AC EFGH
+3ra9 A D
+3r8f ABCD E
+3qx3 AB CDEF
+3qex A PT
+2y35 A B
+3pvv A CD
+3pov A CD
+3po3 ABS T
+3oym A CD
+2xro ABEF XY
+3osn A BC
+3osg A BC
+2xqc AD BCEF
+3on0 ABCD P
+3od8 AB IJ
+3o9x AB EF
+3oa6 AB CDF
+3o3f A CD
+2xlk B D
+3ndh AB CD
+3n1i A B
+3mx4 AH KL
+3mvd ABCDEFGHKL IJ
+3mln AB CD
+3mky B TU
+3lap ABCDEF GHIJKL
+3kxt A BC
+3aaf AB CD
+3kde C AB
+2wt7 AB CD
+3jso AB CD
+3ikt AB CD
+3ih7 A BC
+3iag C AB
+3hxo A B
+3hqf A BC
+2wiw B CD
+3h25 A C
+3h0d AB CD
+3gz6 AB CD
+3gp8 A X
+3gox AB CD
+3gna A D
+3glg ABCDE KL
+2w7n AB EFGH
+3fdq AB CD
+3fde A DE
+3f2b A PT
+3eyi AB CD
+3erc D EI
+3er8 AD EG
+2vye AB C
+3dvo AB EF
+2vy1 A W
+2vs7 A BC
+3coq AB DE
+2zhg A B
+2vla A LM
+3bsu ABC E
+3bs1 A BC
+3brg C AB
+3bm3 AB CD
+3bep AB CD
+3b39 A C
+2ve9 ABC IJ
+2r1j LR AB
+2z70 A B
+2qsh A WY
+2qnf AB CDEF
+2z3x ABC DE
+2v1u A BC
+2py5 A DJY
+2pfj AB YZ
+2p2r A B
+2p0j AB CD
+2ost AB YZ
+2ofi A BC
+2odi A CD
+2e52 AB EG
+2o4a A BC
+2nq9 A BCD
+2itl AB CW
+2isz ABCD EF
+2is6 AB CD
+2ihn A CD
+2ih2 A BC
+2i13 A CD
+2i06 A BC
+2hvr A CE
+2hax AB CD
+2h8c B WX
+2h7g X YZ
+2h27 A BC
+2gxa BCDEF M
+2gig AB EF
+2g1p AB FG
+2fkc A CD
+2fio AB CD
+2fcc A CD
+2ezv AB FG
+2c5r BF YZ
+2bzf A BC
+2aor AB CD
+2a3v ABCD EFGH
+1zs4 ABCD TU
+1zrf AB WXYZ
+2bnw ABCD EF
+1z1b AB CEFG
+1z19 AB CDE
+2bgw AB CD
+1y8z AB CD
+1wte AB XY
+1wb9 AB EF
+1xsd A B
+1xpx A C
+1xo0 AB CD
+1xjv A B
+1x9m A CD
+1u8b A BCDE
+1u3e M ABC
+1w36 BC Y
+1tez A IJ
+1t8e AB CD
+1sx5 AB CDEF
+1sa3 A CD
+1uut A C
+1rio ABH TU
+1rh6 B CD
+1rff AC D
+1r71 AB EFIJ
+1pp7 U EF
+1p71 AB CD
+1oup B CD
+1oe4 AB EF
+1orn A BC
+1omh A B
+1odh A CD
+1nwq AC BD
+1j3e A BC
+1nh2 AC EF
+1mw8 X Y
+1mus A BC
+1msw D NT
+1mnn A BC
+1mje A C
+1m5r A CE
+1lwt A BC
+1lq1 CD EF
+1l3l BD EG
+1kx5 ABCDEFGH IJ
+1ksy AC DF
+1k78 ABI CD
+1k4t A BCD
+1k3x A BC
+1gm5 A XYZ
+1jko C AB
+1jey AB CD
+1h6f AB CD
+1jb7 AB DG
+1ic8 AB EF
+1iaw AB CDEF
+1i3j A BC
+1hlv A BC
+1flo ABCD EFGHIJKL
+1fiu ABCD EFGHIJKL
+1e3o C AB
+1f4k AB DE
+1f0v A M
+1c8c A BC
+1egw AB EF
+1dp7 P D
+1dmu A F
+1b01 AB EF
+1dc1 AB CW
+1qna A CD
+1d02 AB CD
+1cw0 A MNO
+1cqt AI MN
+1qpz A M
+1cl8 A B
+1cf7 AB CD
+1b3t AB CD
+3pvi AB CD
+3bam AB CDE
+1bl0 A BC
+1bg1 A B
+1bdt ABCD EF
+1bc8 C AB
+3orc A RS
+1a73 AB CDEF
+1mjo ABCD FG
+1a3q AB CD
+1tc3 C AB
+1fok A BC
+1jmc A B
+1ign A CD
+1gdt AB CDEF
+2drp A BC
+1pfi B CD
+2bop A B
+1brn L A
+1tro AC IJ
+2bpa 13 A
+7f49 A B
+7ntu B EF
+7jtq A B
+6z8x H B
+6z8w H A
+6vug A E
+6u81 A BC
+6u82 A B
+6gn7 H E
+6evv H E
+6bhj AB E
+6eo6 H D
+6eo7 H D
+5i42 A E
+5i3u AB E
+5hto ABDE CF
+5hro AB E
+5hp1 AB F
+5hlf AB F
+5ew2 H DE
+5ew1 H DE
+5cmx H A
+4ni9 AC BD
+3zh2 ABCD EG
+4i7y H D
+4hqx A C
+4dii H D
+4dih H D
+3qlp H D
+3hxq A B
+3dd2 H B
+1hut H D
