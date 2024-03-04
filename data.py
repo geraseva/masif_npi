@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
-from torch_geometric.data import InMemoryDataset, Data
+from torch.utils.data import Dataset
+from torch_geometric.data import Data
 import numpy as np
 from scipy.spatial.transform import Rotation
 from tqdm import tqdm
@@ -62,6 +63,15 @@ def load_structure_np(structure, chain_ids=None,
     res=np.array(res)
        
     return {"atom_xyz": coords, "atom_types": types_array, "atom_resnames": res}
+
+def download_pdb(pdb, dest, prot=True):
+    # Download pdb 
+    pdbl = PDBList()
+    pdb_filename = pdbl.retrieve_pdb_file(pdb, pdir=tmp_dir, file_format='pdb')
+    if prot:
+        protonate(pdb_filename, dest)
+    else:
+        os.rename(pdb_filename, dest)
 
 def protonate(in_pdb_file, out_pdb_file):
     # protonate (i.e., add hydrogens) a pdb using reduce and save to an output file.
@@ -147,7 +157,8 @@ def load_protein_pair(filename, encoders, chains1, chains2=None):
             p2=load_structure_np(structure, chain_ids=chains2, modified=modified)
             p2 = encode_npy(p2, encoders=encoders)
             protein_pair.from_dict(p2, chain_idx=2)
-
+    except KeyboardInterrupt:
+        raise KeyboardInterrupt
     except:
         protein_pair=None
     return protein_pair
@@ -238,56 +249,56 @@ class PairData(Data):
             return P
         
 
-class NpiDataset(InMemoryDataset):
-
+class NpiDataset(Dataset):
 
     def __init__(self, root, list_file, encoders, prefix='',
-        transform=None, pre_transform=None, pre_filter=None):
+        transform=None, pre_transform=None, pre_filter=None, 
+        store=True):
         
         if isinstance(list_file,list):
             self.list = list_file
-            self.name=prefix
+            self.name = prefix
         else:
             with open(list_file) as f_tr:
                 self.list = f_tr.read().splitlines()
             self.name=prefix+list_file.split('/')[-1].split('.')[0]
 
+        self.root=root
+        self.raw_dir=root+'/raw/'
+        self.processed_dir=root+'/processed/'
+
+        self.transform = transform
+        self.pre_transform=pre_transform
+        self.pre_filter=pre_filter
         self.encoders=encoders
         
-        super(NpiDataset, self).__init__(root, transform, pre_transform,pre_filter)
+        if not all([os.path.exists(x) for x in self.processed_file_names]):
+            for protonated_file in self.raw_file_names:
+                if not os.path.exists(protonated_file):
+                    download_pdb(protonated_file.split('/')[-1].split('.')[0],protonated_file)
+            self.process()
+        else:
+            self.data = torch.load(self.processed_file_names[0], map_location='cuda')
+            self.list = np.load(self.processed_file_names[1])
 
-        self.data, self.slices = torch.load(self.processed_paths[0], map_location='cuda')
-        if isinstance(list_file,list):
-            for i in self.processed_file_names():
-                os.remove(self.processed_dir+i)
+        if store:
+            torch.save(self.data, self.processed_file_names[0])
+            np.save(self.processed_file_names[1], self.list)
     
     @property
     def raw_file_names(self):
-        file_names = [f'{x.split("_")[0]}.pdb' for x in self.list]
+        file_names = [f'{self.raw_dir}/{x.split(" ")[0]}.pdb' for x in self.list]
         return file_names
 
     @property
     def processed_file_names(self):
         file_names = [
-            self.name+'.pt',
-            self.name+'_idx.npy'
+            self.processed_dir+self.name+'.pt',
+            self.processed_dir+self.name+'_idx.npy'
         ]
 
         return file_names
     
-    def download(self):
-        for pdb_id in [x.split(' ')[0] for x in self.list]:
-            protonated_file = Path(f'{self.raw_dir}/{pdb_id}.pdb')
-            if not protonated_file.exists():
-                # Download pdb 
-                pdbl = PDBList()
-                pdb_filename = pdbl.retrieve_pdb_file(pdb_id, pdir=tmp_dir,
-                                                      file_format='pdb')
-                if True:
-                    protonate(pdb_filename, protonated_file)
-                else:
-                    os.rename(pdb_filename, protonated_file)
-
     def load_single(self, idx):
 
         pspl=idx.split(' ')
@@ -308,7 +319,9 @@ class NpiDataset(InMemoryDataset):
 
         #with Pool(4) as p:
         #    processed_dataset = list(tqdm(p.imap(self.load_single, self.list), total=len(self.list)))
-        processed_dataset = [self.load_single(x) for x in tqdm(self.list)]
+        processed_dataset=[]
+        for x in tqdm(self.list):
+            processed_dataset.append(self.load_single(x))
         processed_idx=[idx for i, idx in enumerate(self.list) if processed_dataset[i]!=None]
         processed_dataset=[x for x in processed_dataset if x!=None]
 
@@ -320,18 +333,24 @@ class NpiDataset(InMemoryDataset):
             ]
 
         if self.pre_filter is not None:
-            processed_dataset = [
-                data.to('cpu') for data in processed_dataset if self.pre_filter(data)
-            ]
+            processed_dataset = [data if self.pre_filter(data) else None for data in processed_dataset]
+            processed_idx=[idx for i, idx in enumerate(processed_idx) if processed_dataset[i]!=None]
+            processed_dataset=[x for x in processed_dataset if x!=None]            
         
-        processed_dataset, slices=self.collate(processed_dataset)
+        self.data=processed_dataset
+        self.list=processed_idx
 
-        torch.save(
-            (processed_dataset, slices), self.processed_paths[0]
-        )
-        np.save(self.processed_paths[1], processed_idx)
+    def __len__(self):
+        return len(self.list)
 
+    def __getitem__(self, idx):
+        
+        sample=self.data[idx]
 
+        if self.transform:
+            sample = self.transform(sample)
+
+        return sample
 
 class SurfacePrecompute(object):
     r"""Precomputation of surface"""
