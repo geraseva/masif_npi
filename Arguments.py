@@ -84,7 +84,8 @@ net_parser.add_argument('--split', action='store_true', help="Whether to train t
 net_parser.add_argument("--dropout", type=float, default=0.0,
     help="Amount of Dropout for the input features"
 )
-
+net_parser.add_argument('--encoders', type=json.loads, 
+    help='How to encode atom labels', default={})
 
 train_inf_parser=argparse.ArgumentParser(add_help=False)
 
@@ -286,7 +287,8 @@ def parse_train():
                 net_args.n_outputs=1
             elif args.search:
                 net_args.n_outputs=0
-
+        if net_args.encoders==None:
+            net_args.encoders=args.encoders
         if args.search:
             net_args.split=True
         else:
@@ -313,7 +315,7 @@ def parse_train():
                 args.testing_list="lists/testing_npi.txt"
         if args.data_dir==None:
             args.data_dir='datasets/'
-
+        net_args=net_args.__dict__
     else:
         net_args=None
         if args.random_rotation==None:
@@ -323,5 +325,5 @@ def parse_train():
         if args.out_dir is None:
             args.out_dir='preds/'+args.experiment_name    
     
-
-    return args, net_args
+   
+    return args.__dict__, net_args

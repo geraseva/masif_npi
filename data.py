@@ -156,7 +156,7 @@ def load_protein_pair(filename, encoders, chains1, chains2=None):
     protein_pair = PairData()   
     parser = PDBParser(QUIET=True)
         
-    if True: # try:
+    try:
         structure = parser.get_structure('sample', filename)
         modified=find_modified_residues(filename)
             
@@ -168,10 +168,10 @@ def load_protein_pair(filename, encoders, chains1, chains2=None):
             p2=load_structure_np(structure, chain_ids=chains2, modified=modified)
             p2 = encode_npy(p2, encoders=encoders)
             protein_pair.from_dict(p2, chain_idx=2)
-    #except KeyboardInterrupt:
-    #    raise KeyboardInterrupt
-    #except:
-    #    protein_pair=None
+    except KeyboardInterrupt:
+        raise KeyboardInterrupt
+    except:
+        protein_pair=None
     return protein_pair
 
 
@@ -361,8 +361,8 @@ class NpiDataset(Dataset):
 class SurfacePrecompute(object):
     r"""Precomputation of surface"""
 
-    def __init__(self, surf_gen, args):
-        self.args=args
+    def __init__(self, surf_gen, single_protein=False):
+        self.single_protein=single_protein
         self.preprocess_surface=surf_gen
 
     def __call__(self, protein_pair):
@@ -371,7 +371,7 @@ class SurfacePrecompute(object):
         self.preprocess_surface(P1)
         protein_pair.from_dict(mapping=P1, chain_idx=1)
 
-        if not self.args.single_protein:
+        if not self.single_protein:
             P2 = protein_pair.to_dict(chain_idx=2,keys=['atom_xyz','atom_rad','atom_xyz_batch'])
             self.preprocess_surface(P2)
             protein_pair.from_dict(mapping=P2, chain_idx=2)

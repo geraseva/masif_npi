@@ -7,16 +7,6 @@ Required libraries:
 - pykeops
 - pymol (optional)
 
-Use these commands to download and unpack the dataset of NA-protein interactions:
-```
-cd masif_npi
-wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt  \
---keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=1q8DU3kfeTORHaylOhQ4QVA4wPU1Jv4rQ' -O- | \
-sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1q8DU3kfeTORHaylOhQ4QVA4wPU1Jv4rQ" -O pdbs.tar.gz && rm -rf /tmp/cookies.txt
-
-mkdir datasets
-tar -xzvf pdbs.tar.gz -C datasets/
-```
 Commands used for training are in the `benchmark.sh` file.
     
 Inference can be performed using commands like:

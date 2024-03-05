@@ -159,33 +159,33 @@ class AtomNet_V(nn.Module):
         self.args = args
         self.k = 16
         self.transform_types = nn.Sequential(
-            nn.Linear(args.atom_dims, args.chem_dims),
+            nn.Linear(args['atom_dims'], args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.Linear(args['chem_dims'], args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.Linear(args['chem_dims'], args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
         )
-        self.dropout=nn.Dropout2d(args.dropout)
+        self.dropout=nn.Dropout2d(argsdropout)
 
         self.att=nn.Sequential(
             nn.Linear(self.k, 1, bias=False))
         
         self.embedding = nn.Sequential(
-            nn.Linear(args.chem_dims,args.chem_dims),
+            nn.Linear(args['chem_dims'],args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
-            #nn.BatchNorm1d(args.chem_dims),
-            nn.Linear(args.chem_dims, args.chem_dims),
+            #nn.BatchNorm1d(args['chem_dims']),
+            nn.Linear(args['chem_dims'], args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
-            #nn.BatchNorm1d(args.chem_dims),
-            nn.Linear(args.chem_dims, args.chem_dims),
+            #nn.BatchNorm1d(args['chem_dims']),
+            nn.Linear(args['chem_dims'], args['chem_dims']),
         )
 
 
 
     def forward(self, xyz, atom_xyz, atomtypes, batch, atom_batch):
 
-        atomtypes=atomtypes[:,:self.args.atom_dims]
+        atomtypes=atomtypes[:,:self.args['atom_dims']]
         atomtypes = self.transform_types(atomtypes)
         fx = get_features_v(xyz, atom_xyz, batch, atom_batch, atomtypes, k=self.k)
         fx = self.att(self.dropout(fx)).squeeze(-1)
@@ -199,19 +199,19 @@ class AtomNet_V_MP(nn.Module):
         self.args = args
         self.k = 16
         self.transform_types = nn.Sequential(
-            nn.Linear(args.atom_dims, args.chem_dims),
+            nn.Linear(args['atom_dims'], args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.Linear(args['chem_dims'], args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.chem_dims, args.chem_dims)
+            nn.Linear(args['chem_dims'], args['chem_dims'])
         )
 
         self.transform_types_mp = nn.Sequential(
-            nn.Linear(args.atom_dims, args.chem_dims),
+            nn.Linear(args['atom_dims'], args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.Linear(args['chem_dims'], args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.chem_dims, args.chem_dims)
+            nn.Linear(args['chem_dims'], args['chem_dims'])
         )
         self.att=nn.Sequential(
             nn.Linear(self.k, 1, bias=False))
@@ -219,29 +219,29 @@ class AtomNet_V_MP(nn.Module):
         self.att_mp=nn.Sequential(
             nn.Linear(self.k, 1, bias=False))
 
-        self.bil=nn.Bilinear(args.chem_dims,args.chem_dims,args.chem_dims, bias=False)
+        self.bil=nn.Bilinear(args['chem_dims'],args['chem_dims'],args['chem_dims'], bias=False)
 
-        self.dropout=nn.Dropout(args.dropout)
-        self.dropout_mp=nn.Dropout(args.dropout)
+        self.dropout=nn.Dropout(args['dropout'])
+        self.dropout_mp=nn.Dropout(args['dropout'])
         
         self.embedding_mp = nn.Sequential(
-            nn.Linear(args.chem_dims,args.chem_dims),
+            nn.Linear(args['chem_dims'],args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.Linear(args['chem_dims'], args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.Linear(args['chem_dims'], args['chem_dims']),
         )
         self.embedding = nn.Sequential(
-            nn.Linear(args.chem_dims,args.chem_dims),
+            nn.Linear(args['chem_dims'],args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.Linear(args['chem_dims'], args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.Linear(args['chem_dims'], args['chem_dims']),
         )
 
     def forward(self, xyz, atom_xyz, atomtypes, batch, atom_batch):
 
-        atomtypes=atomtypes[:,:self.args.atom_dims]
+        atomtypes=atomtypes[:,:self.args['atom_dims']]
 
         fx = self.transform_types_mp(atomtypes)
         fx = get_features_v(atom_xyz, atom_xyz, atom_batch, atom_batch, fx, k=self.k+1)
@@ -265,9 +265,9 @@ class AtomNet_V_MP(nn.Module):
 class Atom_embedding(nn.Module):
     def __init__(self, args):
         super(Atom_embedding, self).__init__()
-        self.D = args.chem_dims
+        self.D = args['chem_dims']
         self.k = 16
-        self.dropout=nn.Dropout(args.dropout)
+        self.dropout=nn.Dropout(args['dropout'])
         self.conv1 = nn.Linear(self.D + 1, self.D)
         self.conv2 = nn.Linear(self.D, self.D)
         self.conv3 = nn.Linear(2 * self.D, self.D)
@@ -301,28 +301,28 @@ class AtomNet(nn.Module):
         self.args = args
 
         self.transform_types = nn.Sequential(
-            nn.Linear(args.atom_dims, args.chem_dims),
+            nn.Linear(args['atom_dims'], args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.Linear(args['chem_dims'], args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.chem_dims, args.chem_dims),
+            nn.Linear(args['chem_dims'], args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
         )
         self.embed = Atom_embedding(args)
 
     def forward(self, xyz, atom_xyz, atomtypes, batch, atom_batch):
         # Run a DGCNN on the available information:
-        atomtypes=atomtypes[:,:self.args.atom_dims]
+        atomtypes=atomtypes[:,:self.args['atom_dims']]
         atomtypes = self.transform_types(atomtypes)
         return self.embed(xyz, atom_xyz, atomtypes, batch, atom_batch)
 
 class Atom_embedding_MP(nn.Module):
     def __init__(self, args):
         super(Atom_embedding_MP, self).__init__()
-        self.D = args.chem_dims
+        self.D = args['chem_dims']
         self.k = 16
         self.n_layers = 3
-        self.dropout=nn.Dropout(args.dropout)
+        self.dropout=nn.Dropout(args['dropout'])
         self.mlp = nn.ModuleList(
             [
                 nn.Sequential(
@@ -361,10 +361,10 @@ class Atom_embedding_MP(nn.Module):
 class Atom_Atom_embedding_MP(nn.Module):
     def __init__(self, args):
         super(Atom_Atom_embedding_MP, self).__init__()
-        self.D = args.chem_dims
+        self.D = args['chem_dims']
         self.k = 17
         self.n_layers = 3
-        self.dropout=nn.Dropout(args.dropout)
+        self.dropout=nn.Dropout(args['dropout'])
 
         self.mlp = nn.ModuleList(
             [
@@ -411,9 +411,9 @@ class AtomNet_MP(nn.Module):
         self.args = args
 
         self.transform_types = nn.Sequential(
-            nn.Linear(args.atom_dims, args.atom_dims),
+            nn.Linear(args['atom_dims'], args['atom_dims']),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.atom_dims, args.chem_dims),
+            nn.Linear(args['atom_dims'], args['chem_dims']),
         )
 
         self.embed = Atom_embedding_MP(args)
@@ -421,7 +421,7 @@ class AtomNet_MP(nn.Module):
 
     def forward(self, xyz, atom_xyz, atomtypes, batch, atom_batch):
         # Run a DGCNN on the available information:
-        atomtypes=atomtypes[:,:self.args.atom_dims]
+        atomtypes=atomtypes[:,:self.args['atom_dims']]
         atomtypes = self.transform_types(atomtypes)
         atomtypes = self.atom_atom(
             atom_xyz, atom_xyz, atomtypes, atom_batch, atom_batch
@@ -485,26 +485,26 @@ class dMaSIF(nn.Module):
     def __init__(self, args):
         super(dMaSIF, self).__init__()
         # Additional geometric features: mean and Gauss curvatures computed at different scales.
-        self.curvature_scales = args.curvature_scales
+        self.curvature_scales = args['curvature_scales']
         self.args = args
 
-        I = len(args.curvature_scales)*2+args.chem_dims
-        O = args.orientation_units
-        E = args.emb_dims
-        H = args.post_units
-        C = args.n_outputs
+        I = len(args['curvature_scales'])*2+args['chem_dims']
+        O = args['orientation_units']
+        E = args['emb_dims']
+        H = args['post_units']
+        C = args['n_outputs']
 
         # Computes chemical features
-        if args.feature_generation=='AtomNet':
+        if args['feature_generation']=='AtomNet':
             self.atomnet = AtomNet(args)
-        elif args.feature_generation=='AtomNet_MP':
+        elif args['feature_generation']=='AtomNet_MP':
             self.atomnet = AtomNet_MP(args)
-        elif args.feature_generation=='AtomNet_V':
+        elif args['feature_generation']=='AtomNet_V':
             self.atomnet = AtomNet_V(args)
-        elif args.feature_generation=='AtomNet_V_MP':
+        elif args['feature_generation']=='AtomNet_V_MP':
             self.atomnet = AtomNet_V_MP(args)
 
-        self.dropout = nn.Dropout(args.dropout)
+        self.dropout = nn.Dropout(args['dropout'])
 
             # Post-processing, without batch norm:
         self.orientation_scores = nn.Sequential(
@@ -518,12 +518,12 @@ class dMaSIF(nn.Module):
                 args,
                 in_channels=I,
                 out_channels=E,
-                n_layers=args.n_layers,
-                radius=args.radius,
+                n_layers=args['n_layers'],
+                radius=args['radius'],
             )
 
             # Asymmetric embedding
-        if args.split:
+        if args['split']:
             self.orientation_scores2 = nn.Sequential(
                     nn.Linear(I, O),
                     nn.LeakyReLU(negative_slope=0.2),
@@ -534,8 +534,8 @@ class dMaSIF(nn.Module):
                     args,
                     in_channels=I,
                     out_channels=E,
-                    n_layers=args.n_layers,
-                    radius=args.radius,
+                    n_layers=args['n_layers'],
+                    radius=args['radius'],
                 )
 
         if C>0:
@@ -586,7 +586,7 @@ class dMaSIF(nn.Module):
                 batch=P["batch_xyz"],
             )
         P["embedding_1"] = self.conv(features)
-        if self.args.split:
+        if self.args['split']:
             self.conv2.load_mesh(
                     P["xyz"],
                     triangles=None,
@@ -613,9 +613,9 @@ class dMaSIF(nn.Module):
             P["atom_xyz"],
             atom_batch,
             atom_rad=P["atom_rad"],
-            resolution=self.args.resolution,
-            sup_sampling=self.args.sup_sampling,
-            distance=self.args.distance
+            resolution=self.args['resolution'],
+            sup_sampling=self.args['sup_sampling'],
+            distance=self.args['distance']
         )
         if 'batch_atom_xyz' in P.keys():
             P["batch_xyz"]=batch
@@ -644,7 +644,7 @@ class dMaSIF(nn.Module):
         R_values["input"] = soft_dimension(P1P2["input_features"])
         R_values["conv"] = soft_dimension(P1P2["embedding_1"])
 
-        if self.args.n_outputs>0:
+        if self.args['n_outputs']>0:
             P1P2["preds"] = self.net_out(P1P2["embedding_1"])
 
         if P2 is not None:

@@ -4,7 +4,7 @@ def initialize(args):
     warnings.filterwarnings("ignore") 
 
     import os
-    if args.device=='cpu':
+    if args['device']=='cpu':
         os.environ['CUDA_VISIBLE_DEVICES']=''
 
     import torch
@@ -15,19 +15,19 @@ def initialize(args):
     torch.backends.cudnn.deterministic = True
 
     if not torch.cuda.is_available():
-        args.device='cpu'
-        args.devices=['cpu']
+        args['device']='cpu'
+        args['devices']=['cpu']
         print('Switch to cpu')
 
     import numpy as np
-    if args.seed!=None:
-        torch.manual_seed(args.seed)
-        np.random.seed(args.seed)
+    if args['seed']!=None:
+        torch.manual_seed(args['seed'])
+        np.random.seed(args['seed'])
 
-    if args.device!='cpu':
-        if args.seed!=None:
-            torch.cuda.manual_seed_all(args.seed)
-        torch.cuda.set_device(args.device)
+    if args['device']!='cpu':
+        if args['seed']!=None:
+            torch.cuda.manual_seed_all(args['seed'])
+        torch.cuda.set_device(args['device'])
 
     import pykeops
 
