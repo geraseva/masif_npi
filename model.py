@@ -628,11 +628,11 @@ class dMaSIF(nn.Module):
         # Compute embeddings of the point clouds:
         surf_time=0
         if ("xyz" not in P1):
-            surf_time = self.preprocess_surface(self, P1)
+            surf_time = self.preprocess_surface(P1)
 
         if P2 is not None:
             if ("xyz" not in P2):
-                surf_time += self.preprocess_surface(self, P2)
+                surf_time += self.preprocess_surface(P2)
             P1P2 = combine_pair(P1, P2)
         else:
             P1P2 = P1
