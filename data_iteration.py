@@ -4,11 +4,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
+import copy
 
 from torch.utils.data import random_split
-#from torch_geometric.loader import DataLoader
 from torch.utils.data import DataLoader
-from torch_geometric.transforms import Compose
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
@@ -196,6 +195,7 @@ def extract_single(P_batch, number):
                 P[key] = P_batch.__getitem__(key)
                 vert=P[key][:,0] if len(P[key].shape)==2 else P[key]
                 P[key] = P[key][batch_atoms[vert]]
+                P[key] -= (P_batch["batch_atom_xyz"]<number).sum()
             else:
                 P[key] = P_batch.__getitem__(key)[batch_atoms]
         else:
@@ -203,6 +203,7 @@ def extract_single(P_batch, number):
                 P[key] = P_batch.__getitem__(key)
                 vert=P[key][:,0] if len(P[key].shape)==2 else P[key]
                 P[key] = P[key][batch[vert]]
+                P[key] -= (P_batch["batch_xyz"]<number).sum()
             else:
                 P[key] = P_batch.__getitem__(key)[batch]
     return P
@@ -535,3 +536,24 @@ class CollateData:
         result_dict=PairData(mapping=result_dict)
         result_dict.contiguous()
         return result_dict
+
+class Compose:
+    r"""Composes several transforms together.
+    Args:
+        transforms (List[Callable]): List of transforms to compose.
+    """
+    def __init__(self, transforms: List[Callable]):
+        self.transforms = transforms
+
+    def __call__(self, data):
+        # Shallow-copy the data so that we prevent in-place data modification.
+        return self.forward(copy.copy(data))
+
+    def forward(self,data) :
+        for transform in self.transforms:
+            if isinstance(data, (list, tuple)):
+                data = [transform(d) for d in data]
+            else:
+                data = transform(data)
+        return data
+

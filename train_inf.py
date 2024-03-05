@@ -36,12 +36,11 @@ if __name__ == "__main__":
         print(f'## Execution complete {fulltime} seconds')
     else:
         from torch.utils.data import DataLoader
-        from torch_geometric.transforms import Compose
         from argparse import Namespace
 
         from data import *
         from model import dMaSIF
-        from data_iteration import iterate, CollateData
+        from data_iteration import iterate, CollateData, Compose
 
         model_path = "models/" + args.experiment_name
         with open(f'{model_path}_args.json', 'r') as f:

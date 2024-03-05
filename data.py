@@ -199,13 +199,19 @@ class PairData:
         return self._storage.keys()
 
     def __inc__(self, key, value, *args, **kwargs):
-        if 'batch' in key and isinstance(value, Tensor):
+        if 'batch' in key:
             return int(value.max()) + 1       
         if ('face' in key) or ('edge' in key):
             if key[-3:]== '_p1':
-                return self['xyz_p1'].size(0)
+                if 'atom' in key:
+                    return self['atom_xyz_p1'].size(0)
+                else:
+                    return self['xyz_p1'].size(0)
             else:
-                return self['xyz_p2'].size(0)
+                if 'atom' in key:
+                    return self['atom_xyz_p2'].size(0)
+                else:
+                    return self['xyz_p2'].size(0)
         else:
             return 0
     
