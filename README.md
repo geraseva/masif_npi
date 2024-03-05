@@ -4,7 +4,6 @@ Required libraries:
 - reduce 
 - biopython
 - pytorch
-- pytorch geometric
 - pykeops
 - pymol (optional)
 

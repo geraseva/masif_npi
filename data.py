@@ -1,7 +1,6 @@
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
-from torch_geometric.data import Data
 import numpy as np
 from scipy.spatial.transform import Rotation
 from tqdm import tqdm
@@ -10,7 +9,7 @@ import Bio
 from Bio.PDB import * 
 from Bio.SeqUtils import IUPACData
 from subprocess import Popen, PIPE
-from multiprocessing import Pool
+#from multiprocessing import Pool
 from pykeops.torch import LazyTensor
 from typing import (
     Any,
