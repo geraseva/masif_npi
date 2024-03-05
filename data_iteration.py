@@ -6,7 +6,8 @@ from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
 
 from torch.utils.data import random_split
-from torch_geometric.loader import DataLoader
+#from torch_geometric.loader import DataLoader
+from torch.utils.data import DataLoader
 from torch_geometric.transforms import Compose
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -186,8 +187,8 @@ def compute_loss(args, P1, P2):
 
 def extract_single(P_batch, number):
     P = {}  # First and second proteins
-    batch = P_batch["xyz_batch"] == number
-    batch_atoms = P_batch["atom_xyz_batch"] == number
+    batch = P_batch["batch_xyz"] == number
+    batch_atoms = P_batch["batch_atom_xyz"] == number
 
     for key in P_batch.keys():
         if 'atom' in key:
@@ -235,7 +236,7 @@ def iterate(
                 total_processed_pairs : total_processed_pairs + args.batch_size
             ]
             total_processed_pairs += args.batch_size
-        protein_pair.to(args.device)
+        #protein_pair.to(args.device)
         
         if not test:
             optimizer.zero_grad()
@@ -484,13 +485,13 @@ def train(rank: int, rank_list: int, args, dataset, net, optimizer, starting_epo
     batch_vars = ["xyz_p1", "xyz_p2", "atom_xyz_p1", "atom_xyz_p2"]
 
     train_loader = DataLoader(
-        dataset[0], batch_size=args.batch_size, follow_batch=batch_vars,
+        dataset[0], batch_size=args.batch_size, collate_fn=CollateData(batch_vars),
         shuffle=False, sampler=DistributedSampler(dataset[0]))
     val_loader = DataLoader(
-        dataset[1], batch_size=args.batch_size, follow_batch=batch_vars,
+        dataset[1], batch_size=args.batch_size, collate_fn=CollateData(batch_vars),
         shuffle=False, sampler=DistributedSampler(dataset[1]))
     test_loader = DataLoader(
-        dataset[2], batch_size=1, follow_batch=batch_vars,
+        dataset[2], batch_size=1, collate_fn=CollateData(batch_vars),
         shuffle=False, sampler=DistributedSampler(dataset[2]))
 
 
@@ -507,3 +508,30 @@ def train(rank: int, rank_list: int, args, dataset, net, optimizer, starting_epo
 
     destroy_process_group()
 
+class CollateData:
+
+    def __init__(self, follow_batch=['atom_xyz','target_xyz']):
+        self.follow_batch=follow_batch
+
+    def __call__(self, data):
+
+        result_dict = {}
+        for d in data:
+            for key in d.keys:   
+                if key not in result_dict:
+                    result_dict[key] = d[key]
+                else:
+                    result_dict[key] = torch.cat((result_dict[key], d[key]+d.__inc__(key, result_dict[key])), dim=0)
+                if key in self.follow_batch:
+                    bkey=f'batch_{key}'  
+                    if bkey in d.keys:
+                        continue
+                    batch=torch.zeros((d[key].shape[0],), dtype=int).to(d[key].device) 
+                    if bkey not in result_dict:
+                        result_dict[bkey] = batch
+                    else:
+                        result_dict[bkey] = torch.cat((result_dict[bkey], batch+d.__inc__(bkey, result_dict[bkey])), dim=0)
+                        
+        result_dict=PairData(mapping=result_dict)
+        result_dict.contiguous()
+        return result_dict

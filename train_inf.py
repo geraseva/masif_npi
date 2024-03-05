@@ -35,13 +35,13 @@ if __name__ == "__main__":
         fulltime=time.time()-fulltime
         print(f'## Execution complete {fulltime} seconds')
     else:
-        from torch_geometric.loader import DataLoader
+        from torch.utils.data import DataLoader
         from torch_geometric.transforms import Compose
         from argparse import Namespace
 
         from data import *
         from model import dMaSIF
-        from data_iteration import iterate
+        from data_iteration import iterate, CollateData
 
         model_path = "models/" + args.experiment_name
         with open(f'{model_path}_args.json', 'r') as f:
@@ -103,7 +103,7 @@ if __name__ == "__main__":
         print('## Test nsamples:',len(test_dataset))
 
         test_loader = DataLoader(
-            test_dataset, batch_size=args.batch_size, follow_batch=batch_vars, shuffle=False)
+            test_dataset, batch_size=args.batch_size, collate_fn=CollateData(batch_vars), shuffle=False)
 
         save_predictions_path = Path("preds/" + args.experiment_name)
 

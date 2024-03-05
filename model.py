@@ -450,11 +450,11 @@ def combine_pair(P1, P2):
 
 
 def split_pair(P1P2):
-    p1_indices = (P1P2["xyz_batch"] % 2) == 0
-    p2_indices = (P1P2["xyz_batch"] % 2) == 1
+    p1_indices = (P1P2["batch_xyz"] % 2) == 0
+    p2_indices = (P1P2["batch_xyz"] % 2) == 1
 
-    p1_atom_indices = (P1P2["atom_xyz_batch"] % 2) == 0
-    p2_atom_indices = (P1P2["atom_xyz_batch"] % 2) == 1
+    p1_atom_indices = (P1P2["batch_atom_xyz"] % 2) == 0
+    p2_atom_indices = (P1P2["batch_atom_xyz"] % 2) == 1
 
     P1 = {}
     P2 = {}
@@ -558,12 +558,12 @@ class dMaSIF(nn.Module):
             triangles=None,
             normals= P["normals"],
             scales=self.curvature_scales,
-            batch=P["xyz_batch"],
+            batch=P["batch_xyz"],
         )
 
         # Compute chemical features on-the-fly:
         chemfeats = self.atomnet(
-            P["xyz"], P["atom_xyz"], P["atom_types"], P["xyz_batch"], P["atom_xyz_batch"]
+            P["xyz"], P["atom_xyz"], P["atom_types"], P["batch_xyz"], P["batch_atom_xyz"]
         )
 
         # Concatenate our features:
@@ -583,7 +583,7 @@ class dMaSIF(nn.Module):
                 triangles=None,
                 normals=P["normals"],
                 weights=self.orientation_scores(features),
-                batch=P["xyz_batch"],
+                batch=P["batch_xyz"],
             )
         P["embedding_1"] = self.conv(features)
         if self.args.split:
@@ -592,7 +592,7 @@ class dMaSIF(nn.Module):
                     triangles=None,
                     normals=P["normals"],
                     weights=self.orientation_scores2(features),
-                    batch=P["xyz_batch"],
+                    batch=P["batch_xyz"],
                 )
             P["embedding_2"] = self.conv2(features)
 
@@ -604,14 +604,21 @@ class dMaSIF(nn.Module):
     def preprocess_surface(self, P):
         surf_time = time.time()
 
-        P["xyz"], P["normals"], P["xyz_batch"] = atoms_to_points_normals(
+        if 'batch_atom_xyz' in P.keys():
+            atom_batch=P["batch_atom_xyz"]
+        else:
+            atom_batch=torch.zeros(P["atom_xyz"].shape[0],device=P["atom_xyz"].device, dtype=int)
+            
+        P["xyz"], P["normals"], batch = atoms_to_points_normals(
             P["atom_xyz"],
-            P["atom_xyz_batch"],
+            atom_batch,
             atom_rad=P["atom_rad"],
             resolution=self.args.resolution,
             sup_sampling=self.args.sup_sampling,
             distance=self.args.distance
         )
+        if 'batch_atom_xyz' in P.keys():
+            P["batch_xyz"]=batch
 
         surf_time = time.time()-surf_time
 

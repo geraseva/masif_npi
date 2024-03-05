@@ -12,6 +12,18 @@ from Bio.SeqUtils import IUPACData
 from subprocess import Popen, PIPE
 from multiprocessing import Pool
 from pykeops.torch import LazyTensor
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Union,
+    overload,
+)
 
 import os
 
@@ -145,7 +157,7 @@ def load_protein_pair(filename, encoders, chains1, chains2=None):
     protein_pair = PairData()   
     parser = PDBParser(QUIET=True)
         
-    try:
+    if True: # try:
         structure = parser.get_structure('sample', filename)
         modified=find_modified_residues(filename)
             
@@ -157,75 +169,53 @@ def load_protein_pair(filename, encoders, chains1, chains2=None):
             p2=load_structure_np(structure, chain_ids=chains2, modified=modified)
             p2 = encode_npy(p2, encoders=encoders)
             protein_pair.from_dict(p2, chain_idx=2)
-    except KeyboardInterrupt:
-        raise KeyboardInterrupt
-    except:
-        protein_pair=None
+    #except KeyboardInterrupt:
+    #    raise KeyboardInterrupt
+    #except:
+    #    protein_pair=None
     return protein_pair
 
 
-class PairData(Data):
-    def __init__(
-        self,
-        xyz_p1=None,
-        xyz_p2=None,
-        face_p1=None,
-        face_p2=None,
-        labels_p1=None,
-        labels_p2=None,
-        normals_p1=None,
-        normals_p2=None,
-        center_location_p1=None,
-        center_location_p2=None,
-        atom_xyz_p1=None,
-        atom_xyz_p2=None,
-        atom_types_p1=None,
-        atom_types_p2=None,
-        atom_center_p1=None,
-        atom_center_p2=None,
-        atom_res_p1=None,
-        atom_res_p2=None,
-        atom_rad_p1=None,
-        atom_rad_p2=None,
-        rand_rot_p1=None,
-        rand_rot_p2=None,
-        edge_labels_p1=None,
-        edge_labels_p2=None  
-          ):
-        super().__init__()
-        self.xyz_p1 = xyz_p1
-        self.xyz_p2 = xyz_p2
-        self.face_p1 = face_p1
-        self.face_p2 = face_p2
-        self.labels_p1 = labels_p1
-        self.labels_p2 = labels_p2
-        self.edge_labels_p1=edge_labels_p1
-        self.edge_labels_p2=edge_labels_p2
-        self.normals_p1 = normals_p1
-        self.normals_p2 = normals_p2
-        self.center_location_p1 = center_location_p1
-        self.center_location_p2 = center_location_p2
-        self.atom_xyz_p1 = atom_xyz_p1
-        self.atom_xyz_p2 = atom_xyz_p2
-        self.atom_types_p1 = atom_types_p1
-        self.atom_types_p2 = atom_types_p2
-        self.atom_center_p1 = atom_center_p1
-        self.atom_center_p2 = atom_center_p2
-        self.atom_res_p1 = atom_res_p1
-        self.atom_res_p2 = atom_res_p2
-        self.atom_rad_p1 = atom_rad_p1
-        self.atom_rad_p2 = atom_rad_p2
-        self.rand_rot_p1 = rand_rot_p1
-        self.rand_rot_p2 = rand_rot_p2
+class PairData:
+
+    def __init__(self, mapping=None):
+
+        self._storage={}
+        if mapping!=None:
+            self.from_dict(mapping)
+
+    def __getitem__(self, key: str) -> Any:
+        return self._storage[key]
+
+    def __setitem__(self, key: str, value: Any):
+        self._storage[key]=value
+
+    def __delitem__(self, key: str):
+        if key in self._storage:
+            del self._storage[key]
+
+    @property
+    def keys(self) -> List[str]:
+        return self._storage.keys()
 
     def __inc__(self, key, value, *args, **kwargs):
+        if 'batch' in key and isinstance(value, Tensor):
+            return int(value.max()) + 1       
         if ('face' in key) or ('edge' in key):
             if key[-3:]== '_p1':
-                return self.xyz_p1.size(0)
+                return self['xyz_p1'].size(0)
             else:
-                return self.xyz_p2.size(0)
+                return self['xyz_p2'].size(0)
         else:
-            return super(PairData, self).__inc__(key, value)
+            return 0
+    
+    def to(self, device):
+        for key in self.keys:
+            self._storage[key]=self._storage[key].to(device)
+    
+    def contiguous(self):
+        for key in self.keys:
+            self._storage[key]=self._storage[key].contiguous()
     
     def from_dict(self, mapping, chain_idx=None):
         if chain_idx==None:
@@ -234,19 +224,30 @@ class PairData(Data):
             lbl=f'_p{chain_idx}'  
 
         for key in mapping:
-            self.__setitem__(key+lbl,mapping[key])
+            if mapping[key]!=None:
+                self.__setitem__(key+lbl,mapping[key])
 
-    def to_dict(self, chain_idx=None):
+    def to_dict(self, chain_idx=None, keys=None):
 
+        P = {}
         if chain_idx==None:
-            return self._store.to_dict()
+            if keys==None:
+                keys=self.keys
+            for key in keys:
+                try:
+                    P[key] = self.__getitem__(key)
+                except KeyError:
+                    pass
         else:
-            P = {}
             lbl=f'_p{chain_idx}'
-            for key in self.keys:
-                if lbl in key:
-                    P[key.replace(lbl,'')] = self.__getitem__(key)
-            return P
+            if keys==None:
+                keys=[x.replace(lbl,'') for x in self.keys if lbl in x]
+            for key in keys:
+                try:
+                    P[key] = self.__getitem__(key+lbl)
+                except KeyError:
+                    pass
+        return P
         
 
 class NpiDataset(Dataset):
@@ -361,34 +362,14 @@ class SurfacePrecompute(object):
 
     def __call__(self, protein_pair):
 
-        P1 = {}
-        P1["atom_xyz"] = protein_pair.atom_xyz_p1
-        P1["atom_rad"] = protein_pair.atom_rad_p1
-        if 'atom_xyz_p1_batch' in protein_pair.keys:
-            P1['atom_xyz_batch']=protein_pair.atom_xyz_p1_batch
-        else:
-            P1['atom_xyz_batch']=torch.zeros(P1['atom_xyz'].shape[0], dtype=torch.int).to(P1['atom_xyz'].device)
+        P1 = protein_pair.to_dict(chain_idx=1,keys=['atom_xyz','atom_rad','atom_xyz_batch'])
         self.preprocess_surface(P1)
-        protein_pair.xyz_p1 = P1["xyz"]
-        protein_pair.normals_p1 = P1["normals"]
-        protein_pair.face_p1 = P1.get("face")
-        if 'atom_xyz_p1_batch' in protein_pair.keys:
-            protein_pair.xyz_p1_batch=P1['xyz_batch']
+        protein_pair.from_dict(mapping=P1, chain_idx=1)
 
         if not self.args.single_protein:
-            P2 = {}
-            P2["atom_xyz"] = protein_pair.atom_xyz_p2
-            P2["atom_rad"] = protein_pair.atom_rad_p2
-            if 'atom_xyz_p2_batch' in protein_pair.keys:
-                P2['atom_xyz_batch']=protein_pair.atom_xyz_p2_batch
-            else:
-                P2['atom_xyz_batch']=torch.zeros(P2['atom_xyz'].shape[0], dtype=torch.int).to(P2['atom_xyz'].device)
-            self.preprocess_surface(P2)      
-            protein_pair.xyz_p2 = P2["xyz"]
-            protein_pair.normals_p2 = P2["normals"]
-            protein_pair.face_p2 = P2.get("face")
-            if 'atom_xyz_p2_batch' in protein_pair.keys:
-                protein_pair.xyz_p2_batch=P2['xyz_batch']
+            P2 = protein_pair.to_dict(chain_idx=2,keys=['atom_xyz','atom_rad','atom_xyz_batch'])
+            self.preprocess_surface(P2)
+            protein_pair.from_dict(mapping=P2, chain_idx=2)
         return protein_pair
 
 
@@ -423,30 +404,30 @@ class LabelsFromAtoms(object):
 
     def __call__(self, protein_pair):
 
-        if protein_pair.atom_xyz_p2.shape[0]==0:
-            query_labels=torch.zeros(protein_pair.xyz_p1.shape[0])
+        if protein_pair['atom_xyz_p2'].shape[0]==0:
+            query_labels=torch.zeros(protein_pair['xyz_p1'].shape[0])
         else:
             query_labels=get_threshold_labels(
-                queries = protein_pair.xyz_p1,
+                queries = protein_pair['xyz_p1'],
                 batch_queries = None,
-                source = protein_pair.atom_xyz_p2,
+                source = protein_pair['atom_xyz_p2'],
                 batch_source = None,
-                labels = protein_pair.atom_res_p2,
+                labels = protein_pair['atom_res_p2'],
                 threshold=self.threshold)
-        protein_pair.labels_p1 = query_labels.detach()
+        protein_pair['labels_p1'] = query_labels.detach()
 
         if not self.single:        
-            if protein_pair.atom_xyz_p1.shape[0]==0:
-                query_labels=torch.zeros(protein_pair.xyz_p2.shape[0])
+            if protein_pair['atom_xyz_p1'].shape[0]==0:
+                query_labels=torch.zeros(protein_pair['xyz_p2'].shape[0])
             else:
                 query_labels=get_threshold_labels(
-                    queries = protein_pair.xyz_p2,
+                    queries = protein_pair['xyz_p2'],
                     batch_queries = None,
-                    source = protein_pair.atom_xyz_p1,
+                    source = protein_pair['atom_xyz_p1'],
                     batch_source = None,
-                    labels = protein_pair.atom_res_p1,
+                    labels = protein_pair['atom_res_p1'],
                     threshold=self.threshold)
-            protein_pair.labels_p2 = query_labels.detach()
+            protein_pair['labels_p2'] = query_labels.detach()
 
         return protein_pair
 
@@ -463,8 +444,8 @@ class GenerateMatchingLabels(object):
 
     def __call__(self, protein_pair):
 
-        xyz1_i = protein_pair.xyz_p1
-        xyz2_j = protein_pair.xyz_p2
+        xyz1_i = protein_pair['xyz_p1']
+        xyz2_j = protein_pair['xyz_p2']
 
         xyz1_i = LazyTensor(xyz1_i[:, None, :].contiguous())
         xyz2_j = LazyTensor(xyz2_j[None, :, :].contiguous())
@@ -472,19 +453,19 @@ class GenerateMatchingLabels(object):
         xyz_dists = ((xyz1_i - xyz2_j) ** 2).sum(-1)
         xyz_dists = (self.threshold**2 - xyz_dists).step()
 
-        protein_pair.labels_p1 = (xyz_dists.sum(1) > 1.0).float().view(-1).detach()
-        protein_pair.labels_p2 = (xyz_dists.sum(0) > 1.0).float().view(-1).detach()
+        protein_pair['labels_p1'] = (xyz_dists.sum(1) > 1.0).float().view(-1).detach()
+        protein_pair['labels_p2'] = (xyz_dists.sum(0) > 1.0).float().view(-1).detach()
 
-        pos_xyz1 = protein_pair.xyz_p1[protein_pair.labels_p1==1]
-        pos_xyz2 = protein_pair.xyz_p2[protein_pair.labels_p2==1]
+        pos_xyz1 = protein_pair['xyz_p1'][protein_pair['labels_p1']==1]
+        pos_xyz2 = protein_pair['xyz_p2'][protein_pair['labels_p2']==1]
 
         pos_xyz_dists = (
             ((pos_xyz1[:, None, :] - pos_xyz2[None, :, :]) ** 2).sum(-1)
         )
         edges=torch.nonzero(self.threshold**2 > pos_xyz_dists, as_tuple=True)
 
-        protein_pair.edge_labels_p1=torch.nonzero(protein_pair.labels_p1)[edges[0]].view(-1).detach()
-        protein_pair.edge_labels_p2=torch.nonzero(protein_pair.labels_p2)[edges[1]].view(-1).detach()
+        protein_pair['edge_labels_p1']=torch.nonzero(protein_pair['labels_p1'])[edges[0]].view(-1).detach()
+        protein_pair['edge_labels_p2']=torch.nonzero(protein_pair['labels_p2'])[edges[1]].view(-1).detach()
 
         return protein_pair
 
@@ -493,9 +474,10 @@ class RemoveSecondProtein(object):
 
     def __call__(self, protein_pair):
 
-        for key in protein_pair.keys:
-            if '_p2' in key:
-                protein_pair.__delitem__(key)
+        keys=[x for x in protein_pair.keys if '_p2' in x]
+
+        for key in keys:
+            protein_pair.__delitem__(key)
 
         return protein_pair
 
@@ -509,23 +491,23 @@ class RandomRotationPairAtoms(object):
 
     def __call__(self, data):
 
-        R1 = torch.FloatTensor(Rotation.random().as_matrix()).to(data.xyz_p1.device)
+        R1 = torch.FloatTensor(Rotation.random().as_matrix()).to(data['xyz_p1'].device)
         if self.as_single:
             R2=R1
             for key in data.keys: 
                 if (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p1':
-                    size=data.__getitem__(key).shape[0]
-                    to_rotate=torch.cat([data.__getitem__(key),data.__getitem__(key[:-1]+'2')], dim=0)
+                    size=data[key].shape[0]
+                    to_rotate=torch.cat([data[key],data[key[:-1]+'2']], dim=0)
                     to_rotate=torch.matmul(R1, to_rotate.T).T
-                    data.__setitem__(key,to_rotate[:size])
-                    data.__setitem__(key[:-1]+'2',to_rotate[size:])
+                    data[key]=to_rotate[:size]
+                    data[key[:-1]+"2"]=to_rotate[size:]
         else:
-            R2 = torch.FloatTensor(Rotation.random().as_matrix()).to(data.xyz_p1.device)
+            R2 = torch.FloatTensor(Rotation.random().as_matrix()).to(data['xyz_p1'].device)
             for key in data.keys: 
                 if (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p1':
-                    data.__setitem__(key,torch.matmul(R1, data.__getitem__(key).T).T)
+                    data[key]=torch.matmul(R1, data[key].T).T
                 elif (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p2':
-                    data.__setitem__(key,torch.matmul(R2, data.__getitem__(key).T).T)
+                    data[key]=torch.matmul(R2, data[key].T).T
                     data.rand_rot2 = R2
                     
         data.rand_rot1 = R1
@@ -547,23 +529,23 @@ class CenterPairAtoms(object):
         
         if self.as_single:
             atom_center1=torch.cat(
-                [data.atom_xyz_p1,data.atom_xyz_p2], dim=0
+                [data['atom_xyz_p1'],data['atom_xyz_p2']], dim=0
                 ).mean(dim=0, keepdim=True)
             atom_center2=atom_center1
         else:
-            atom_center1 = data.atom_xyz_p1.mean(dim=0, keepdim=True)
+            atom_center1 = data['atom_xyz_p1'].mean(dim=0, keepdim=True)
             try:
-                atom_center2 = data.atom_xyz_p2.mean(dim=0, keepdim=True)
-            except AttributeError:
-                atom_center2=None
+                atom_center2 = data['atom_xyz_p2'].mean(dim=0, keepdim=True)
+            except KeyError:
+                pass
 
         data.atom_center1 = atom_center1
 
         for key in data.keys: 
             if ('xyz' in key) and key[-3:]=='_p1':
-                data.__setitem__(key, data.__getitem__(key) - atom_center1)
+                data[key] = data[key] - atom_center1
             elif ('xyz' in key) and key[-3:]=='_p2':
-                data.__setitem__(key, data.__getitem__(key) - atom_center2)
+                data[key] = data[key] - atom_center2
                 data.atom_center2 = atom_center2
 
         return data
@@ -573,15 +555,15 @@ class CenterPairAtoms(object):
 
 
 def iface_valid_filter(protein_pair):
-    labels1 = protein_pair.labels_p1.reshape(-1)>0
+    labels1 = protein_pair['labels_p1'].reshape(-1)>0
     valid1 = (
         (torch.sum(labels1) < 0.75 * len(labels1))
         and (torch.sum(labels1) > 30)
     )
     valid1 *= (labels1.shape[0]<30000)
     
-    labels2 = protein_pair.get('labels_p2')
-    if labels2 != None:
+    if 'labels_p2' in protein_pair.keys:
+        labels2 = protein_pair['labels_p2']
         labels2 = labels2.reshape(-1)>0
         valid2 = (
             (torch.sum(labels2) < 0.75 * len(labels2))
