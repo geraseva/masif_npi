@@ -390,7 +390,7 @@ class Trainer:
                             "model_state_dict": self.model.module.state_dict(),
                             "optimizer_state_dict": self.optimizer.state_dict(),
                             "best_loss": val_loss,
-                            "net_args": self.model.args
+                            "net_args": self.model.module.args
                         },
                         f"models/{self.args['experiment_name']}"
                     )

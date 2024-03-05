@@ -49,7 +49,7 @@ if __name__ == "__main__":
             
 
         print('# Model loaded')
-        print('## Model arguments:',net_args)
+        print('## Model arguments:',checkpoint['net_args'])
 
         batch_vars = ["xyz_p1", "xyz_p2", "atom_xyz_p1", "atom_xyz_p2"]
 
