@@ -604,21 +604,17 @@ class dMaSIF(nn.Module):
     def preprocess_surface(self, P):
         surf_time = time.time()
 
-        if 'batch_atom_xyz' in P.keys():
-            atom_batch=P["batch_atom_xyz"]
-        else:
-            atom_batch=torch.zeros(P["atom_xyz"].shape[0],device=P["atom_xyz"].device, dtype=int)
+        if 'batch_atom_xyz' not in P.keys():
+            P["batch_atom_xyz"]=torch.zeros(P["atom_xyz"].shape[0],device=P["atom_xyz"].device, dtype=int)
             
-        P["xyz"], P["normals"], batch = atoms_to_points_normals(
+        P["xyz"], P["normals"], P["batch_xyz"] = atoms_to_points_normals(
             P["atom_xyz"],
-            atom_batch,
+            P["batch_atom_xyz"],
             atom_rad=P["atom_rad"],
             resolution=self.args['resolution'],
             sup_sampling=self.args['sup_sampling'],
             distance=self.args['distance']
         )
-        if 'batch_atom_xyz' in P.keys():
-            P["batch_xyz"]=batch
 
         surf_time = time.time()-surf_time
 
