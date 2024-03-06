@@ -56,6 +56,15 @@ def load_structure_np(structure, chain_ids=None,
         structure = parser.get_structure(structure, structure)
         modified = find_modified_residues(structure)
 
+    p={}
+    p['atom_xyz']=[]
+    p['atom_types']=[]
+    p['atom_names']=[]
+    p['atom_ids']=[]
+    p['atom_resnames']=[]
+    p['atom_resids']=[]
+    p['atom_chains']=[]
+
     coords = []
     types = []
     res=[]
@@ -66,14 +75,18 @@ def load_structure_np(structure, chain_ids=None,
                 het = residue.get_id()
                 if (het[0] == " ") or (het[0][-3:] in modified):
                     for atom in residue:
-                        coords.append(atom.get_coord())
-                        types.append(atom.get_name())
-                        res.append(residue.get_resname())
-    coords = np.stack(coords)
-    types_array = np.array(types)
-    res=np.array(res)
+                        p['atom_xyz'].append(atom.get_coord())
+                        p['atom_types'].append(atom.element)
+                        p['atom_names'].append(atom.get_name())
+                        p['atom_ids'].append(atom.get_id())
+                        p['atom_resnames'].append(residue.get_resname())
+                        p['atom_resids'].append(residue.get_id())
+                        p['atom_chains'].append(chain.get_id())
+    p['atom_xyz'] = np.stack(p['atom_xyz'])
+    for key in p:
+        p[key]=np.array(p[key])
        
-    return {"atom_xyz": coords, "atom_types": types_array, "atom_resnames": res}
+    return p
 
 def download_pdb(pdb, dest, prot=True):
     # Download pdb 
