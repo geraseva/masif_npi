@@ -80,7 +80,7 @@ def load_structure_np(structure, chain_ids=None,
                         p['atom_names'].append(atom.get_name())
                         p['atom_ids'].append(atom.get_id())
                         p['atom_resnames'].append(residue.get_resname())
-                        p['atom_resids'].append(residue.get_id())
+                        p['atom_resids'].append(residue.get_id()[1])
                         p['atom_chains'].append(chain.get_id())
     p['atom_xyz'] = np.stack(p['atom_xyz'])
     for key in p:
