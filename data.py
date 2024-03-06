@@ -513,7 +513,7 @@ class RandomRotationPairAtoms(object):
         if self.as_single:
             R2=R1
             for key in data.keys: 
-                if (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p1':
+                if (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p1' and key[:5]!='batch':
                     size=data[key].shape[0]
                     to_rotate=torch.cat([data[key],data[key[:-1]+'2']], dim=0)
                     to_rotate=torch.matmul(R1, to_rotate.T).T
@@ -522,9 +522,9 @@ class RandomRotationPairAtoms(object):
         else:
             R2 = torch.FloatTensor(Rotation.random().as_matrix()).to(data['xyz_p1'].device)
             for key in data.keys: 
-                if (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p1':
+                if (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p1' and key[:5]!='batch':
                     data[key]=torch.matmul(R1, data[key].T).T
-                elif (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p2':
+                elif (('xyz' in key) or ('normals' in key)) and key[-3:]=='_p2' and key[:5]!='batch':
                     data[key]=torch.matmul(R2, data[key].T).T
                     data.rand_rot2 = R2
                     
@@ -560,9 +560,9 @@ class CenterPairAtoms(object):
         data.atom_center1 = atom_center1
 
         for key in data.keys: 
-            if ('xyz' in key) and key[-3:]=='_p1':
+            if ('xyz' in key) and key[-3:]=='_p1' and key[:5]!='batch':
                 data[key] = data[key] - atom_center1
-            elif ('xyz' in key) and key[-3:]=='_p2':
+            elif ('xyz' in key) and key[-3:]=='_p2' and key[:5]!='batch':
                 data[key] = data[key] - atom_center2
                 data.atom_center2 = atom_center2
 
