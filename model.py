@@ -140,9 +140,6 @@ def get_features_v(x, y, x_batch, y_batch, y_atomtype, k=16, gamma=1):
     
     _, num_dims = y_atomtype.size()
 
-
-
-
     #normalize coords by distance
     norm_vec=vecs*dists[:, :, None] #(N, k, D)
     
@@ -156,8 +153,8 @@ def get_features_v(x, y, x_batch, y_batch, y_atomtype, k=16, gamma=1):
 class AtomNet_V(nn.Module):
     def __init__(self, args):
         super(AtomNet_V, self).__init__()
-        self.args = args
-        self.k = 16
+        self.atom_dims=args['atom_dims']
+        self.k = args['knn']
         self.transform_types = nn.Sequential(
             nn.Linear(args['atom_dims'], args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
@@ -185,7 +182,7 @@ class AtomNet_V(nn.Module):
 
     def forward(self, xyz, atom_xyz, atomtypes, batch, atom_batch):
 
-        atomtypes=atomtypes[:,:self.args['atom_dims']]
+        atomtypes=atomtypes[:,:self.atom_dims]
         atomtypes = self.transform_types(atomtypes)
         fx = get_features_v(xyz, atom_xyz, batch, atom_batch, atomtypes, k=self.k)
         fx = self.att(self.dropout(fx)).squeeze(-1)
@@ -196,8 +193,8 @@ class AtomNet_V(nn.Module):
 class AtomNet_V_MP(nn.Module):
     def __init__(self, args):
         super(AtomNet_V_MP, self).__init__()
-        self.args = args
-        self.k = 16
+        self.atom_dims=args['atom_dims']
+        self.k = args['knn']
         self.transform_types = nn.Sequential(
             nn.Linear(args['atom_dims'], args['chem_dims']),
             nn.LeakyReLU(negative_slope=0.2),
@@ -241,7 +238,7 @@ class AtomNet_V_MP(nn.Module):
 
     def forward(self, xyz, atom_xyz, atomtypes, batch, atom_batch):
 
-        atomtypes=atomtypes[:,:self.args['atom_dims']]
+        atomtypes=atomtypes[:,:self.atom_dims]
 
         fx = self.transform_types_mp(atomtypes)
         fx = get_features_v(atom_xyz, atom_xyz, atom_batch, atom_batch, fx, k=self.k+1)
@@ -298,7 +295,7 @@ class Atom_embedding(nn.Module):
 class AtomNet(nn.Module):
     def __init__(self, args):
         super(AtomNet, self).__init__()
-        self.args = args
+        self.atom_dims=args['atom_dims']
 
         self.transform_types = nn.Sequential(
             nn.Linear(args['atom_dims'], args['chem_dims']),
@@ -312,7 +309,7 @@ class AtomNet(nn.Module):
 
     def forward(self, xyz, atom_xyz, atomtypes, batch, atom_batch):
         # Run a DGCNN on the available information:
-        atomtypes=atomtypes[:,:self.args['atom_dims']]
+        atomtypes=atomtypes[:,:self.atom_dims]
         atomtypes = self.transform_types(atomtypes)
         return self.embed(xyz, atom_xyz, atomtypes, batch, atom_batch)
 
@@ -408,7 +405,7 @@ class Atom_Atom_embedding_MP(nn.Module):
 class AtomNet_MP(nn.Module):
     def __init__(self, args):
         super(AtomNet_MP, self).__init__()
-        self.args = args
+        self.atom_dims=args['atom_dims']
 
         self.transform_types = nn.Sequential(
             nn.Linear(args['atom_dims'], args['atom_dims']),
@@ -421,7 +418,7 @@ class AtomNet_MP(nn.Module):
 
     def forward(self, xyz, atom_xyz, atomtypes, batch, atom_batch):
         # Run a DGCNN on the available information:
-        atomtypes=atomtypes[:,:self.args['atom_dims']]
+        atomtypes=atomtypes[:,:self.atom_dims]
         atomtypes = self.transform_types(atomtypes)
         atomtypes = self.atom_atom(
             atom_xyz, atom_xyz, atomtypes, atom_batch, atom_batch

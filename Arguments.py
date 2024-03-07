@@ -45,6 +45,12 @@ net_parser.add_argument(
     help="Number of resulting chemical features",
 )
 net_parser.add_argument(
+    "--knn",
+    type=int,
+    default=None,
+    help="Number of nearest atoms",
+)
+net_parser.add_argument(
     "--curvature_scales",
     type=list,
     default=[1.0, 2.0, 3.0, 5.0, 10.0],
@@ -316,12 +322,16 @@ def parse_train():
                 net_args.distance=1.25
             else:
                 net_args.distance=1.05
-
         if net_args.sup_sampling==None:
             if args.no_h:
                 net_args.sup_sampling=34
             else:
                 net_args.sup_sampling=20
+        if net_args.knn==None:
+            if args.no_h:
+                net_args.knn=10
+            else:
+                net_args.knn=16
 
         if args.training_list==None:
             if args.na=='protein':
