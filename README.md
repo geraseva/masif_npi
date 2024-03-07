@@ -1,4 +1,4 @@
-Implementation of dMaSIF (https://github.com/FreyrS/dMaSIF) to predict NA-protein interactions
+Implementation of [dMaSIF](https://github.com/FreyrS/dMaSIF) to predict NA-protein interactions.
 
 Required libraries:
 - reduce 
