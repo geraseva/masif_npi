@@ -263,7 +263,7 @@ class Atom_embedding(nn.Module):
     def __init__(self, args):
         super(Atom_embedding, self).__init__()
         self.D = args['chem_dims']
-        self.k = 16
+        self.k = args['knn']
         self.dropout=nn.Dropout(args['dropout'])
         self.conv1 = nn.Linear(self.D + 1, self.D)
         self.conv2 = nn.Linear(self.D, self.D)
@@ -317,7 +317,7 @@ class Atom_embedding_MP(nn.Module):
     def __init__(self, args):
         super(Atom_embedding_MP, self).__init__()
         self.D = args['chem_dims']
-        self.k = 16
+        self.k = args['knn']
         self.n_layers = 3
         self.dropout=nn.Dropout(args['dropout'])
         self.mlp = nn.ModuleList(
@@ -359,7 +359,7 @@ class Atom_Atom_embedding_MP(nn.Module):
     def __init__(self, args):
         super(Atom_Atom_embedding_MP, self).__init__()
         self.D = args['chem_dims']
-        self.k = 17
+        self.k = args['knn']+1
         self.n_layers = 3
         self.dropout=nn.Dropout(args['dropout'])
 
