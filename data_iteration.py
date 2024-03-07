@@ -458,7 +458,9 @@ def load_train_objs(args, net_args):
         prefix=f'npi_{args["na"].lower()}_'
     elif args['search']:
         prefix=f'search_{args["na"].lower()}_'
-    
+    if args['no_h']:
+        prefix+='no_h_'
+        
     full_dataset = NpiDataset(args['data_dir'], args['training_list'],
                 transform=transformations, pre_transform=pre_transformations, 
                 encoders=args['encoders'], prefix=prefix, pre_filter=iface_valid_filter)

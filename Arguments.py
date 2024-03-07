@@ -20,7 +20,7 @@ net_parser.add_argument(
 net_parser.add_argument(
     "--distance",
     type=float,
-    default=1.05,
+    default=None,
     help="Distance parameter in surface generation",
 )
 net_parser.add_argument(
@@ -30,7 +30,7 @@ net_parser.add_argument(
     help="Variance parameter in surface generation",
 )
 net_parser.add_argument(
-    "--sup_sampling", type=int, default=20, help="Sup-sampling ratio around atoms"
+    "--sup_sampling", type=int, default=None, help="Sup-sampling ratio around atoms"
 )
 # Hyper-parameters for the embedding
 net_parser.add_argument(
@@ -139,8 +139,14 @@ train_inf_parser.add_argument(
 )
 train_inf_parser.add_argument( "--threshold", type=float, 
     default=None, help="Distance threshold for interaction")
+train_inf_parser.add_argument(
+    "--no_h",
+    action='store_true',
+    help="Whether to remove hydrogens",
+)
 train_inf_parser.add_argument('--encoders', type=json.loads, 
     help='How to encode atom labels', default={})
+
 
 main_parser=argparse.ArgumentParser(prog='train_inf')
 
@@ -248,6 +254,16 @@ def parse_train():
                                             {'name': 'atom_rad',
                                                  'encoder': {'H': 110, 'C': 170, 'N': 155, 'O': 152, '-': 180}
                                             }]
+        if args.no_h:
+            for encoder in args.encoders['atom_encoders']:
+                val=encoder['encoder'].pop('H')
+                if encoder['name']=='atom_rad':
+                    continue
+                for key in encoder['encoder']:
+                    if encoder['encoder'][key]>val:
+                        encoder['encoder'][key]-=1 
+            args.encoders['atom_encoders'].append({'name': 'mask',
+                                                   'encoder': {"H": 0, "-": 1}})
     if args.threshold==None:
         if args.search:
             args.threshold=1 # distance between two surface points
@@ -280,6 +296,8 @@ def parse_train():
                 net_args.atom_dims=6
             else:
                 net_args.atom_dims=5
+            if args.no_h:
+                net_args.atom_dims-=1
         if net_args.n_outputs==None:
             if args.npi:
                 net_args.n_outputs=5
@@ -287,12 +305,23 @@ def parse_train():
                 net_args.n_outputs=1
             elif args.search:
                 net_args.n_outputs=0
-        if net_args.encoders==None:
+        if net_args.encoders=={}:
             net_args.encoders=args.encoders
         if args.search:
             net_args.split=True
         else:
             net_args.split=False
+        if net_args.distance==None:
+            if args.no_h:
+                net_args.distance=1.25
+            else:
+                net_args.distance=1.05
+
+        if net_args.sup_sampling==None:
+            if args.no_h:
+                net_args.sup_sampling=34
+            else:
+                net_args.sup_sampling=20
 
         if args.training_list==None:
             if args.na=='protein':

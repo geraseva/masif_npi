@@ -155,21 +155,20 @@ def encode_npy(p, encoders):
             o=max(la['encoder'].values())+1 if la['name'] in list_to_onehot else 0
             protein_data[la['name']] = encode_labels(p['atom_resnames'],la['encoder'],o)    
 
-    mask=torch.ones(protein_data['atom_xyz'].shape[0], dtype=bool) # to mask H atoms, for example
-    for key in protein_data:
-        if 'mask' in key:
-            mask=mask*protein_data.pop[key]
+    mask=torch.ones(protein_data['atom_xyz'].shape[0], dtype=bool, device='cuda') # to mask H atoms, for example
+    masks=[x for x in protein_data.keys() if 'mask' in x]
+    for key in masks:
+        mask=mask*protein_data.pop(key)
     mask=(mask>0)
     for key in protein_data:
         protein_data[key]=protein_data[key][mask]
-
     return protein_data
 
 def load_protein_pair(filename, encoders, chains1, chains2=None):
     protein_pair = PairData()   
     parser = PDBParser(QUIET=True)
         
-    try:
+    if True: #try:
         structure = parser.get_structure('sample', filename)
         modified=find_modified_residues(filename)
             
@@ -181,10 +180,10 @@ def load_protein_pair(filename, encoders, chains1, chains2=None):
             p2=load_structure_np(structure, chain_ids=chains2, modified=modified)
             p2 = encode_npy(p2, encoders=encoders)
             protein_pair.from_dict(p2, chain_idx=2)
-    except KeyboardInterrupt:
-        raise KeyboardInterrupt
-    except:
-        protein_pair=None
+    #except KeyboardInterrupt:
+    #    raise KeyboardInterrupt
+    #except:
+    #    protein_pair=None
     return protein_pair
 
 
@@ -587,7 +586,7 @@ def iface_valid_filter(protein_pair):
             (torch.sum(labels2) < 0.75 * len(labels2))
             and (torch.sum(labels2) > 30)
         )
-        valid2 *= (labels2.shape[0]<30000)
+        valid2 *= (labels2.shape[0]<40000)
     else:
         valid2=True
 
