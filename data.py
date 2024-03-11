@@ -168,7 +168,7 @@ def load_protein_pair(filename, encoders, chains1, chains2=None):
     protein_pair = PairData()   
     parser = PDBParser(QUIET=True)
         
-    if True: #try:
+    try:
         structure = parser.get_structure('sample', filename)
         modified=find_modified_residues(filename)
             
@@ -180,10 +180,10 @@ def load_protein_pair(filename, encoders, chains1, chains2=None):
             p2=load_structure_np(structure, chain_ids=chains2, modified=modified)
             p2 = encode_npy(p2, encoders=encoders)
             protein_pair.from_dict(p2, chain_idx=2)
-    #except KeyboardInterrupt:
-    #    raise KeyboardInterrupt
-    #except:
-    #    protein_pair=None
+    except KeyboardInterrupt:
+        raise KeyboardInterrupt
+    except:
+        protein_pair=None
     return protein_pair
 
 
