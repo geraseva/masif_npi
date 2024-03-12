@@ -139,18 +139,18 @@ def encode_npy(p, encoders):
         return None
     list_to_onehot=['atom_types']
 
-    protein_data={}
-
-    protein_data['atom_xyz']=tensor(p['atom_xyz'])
-
     mask=1 # to mask H atoms, for example
     for key in encoders:
         for aa in encoders[key]:
             if 'mask' in aa['name']:
                 mask*=encode_labels(p[key],aa['encoder'],0, to_tensor=False)
-    mask=(mask>0)
-    for key in p:
-        p[key]=p[key][mask]
+    if not isinstance(mask, int):
+        mask=(mask>0)
+        for key in p:
+            p[key]=p[key][mask]
+
+    protein_data={}
+    protein_data['atom_xyz']=tensor(p['atom_xyz'])
 
     for key in encoders:
         for aa in encoders[key]:
@@ -184,6 +184,7 @@ def load_protein_pair(filename, encoders, chains1, chains2=None):
         raise KeyboardInterrupt
     except:
         protein_pair=None
+
     return protein_pair
 
 
