@@ -82,6 +82,7 @@ def load_structure_np(structure, chain_ids=None,
                         p['atom_resnames'].append(residue.get_resname())
                         p['atom_resids'].append(residue.get_id()[1])
                         p['atom_chains'].append(chain.get_id())
+    
     p['atom_xyz'] = np.stack(p['atom_xyz'])
     for key in p:
         p[key]=np.array(p[key])
@@ -117,12 +118,14 @@ def protonate(in_pdb_file, out_pdb_file):
     outfile.write(stdout.decode('utf-8'))
     outfile.close()
 
-def encode_labels(labels,aa,onehot=0):
+def encode_labels(labels,aa,onehot=0, to_tensor=True):
 
     d=aa.get('-')
     if d==None:
         d=0
     labels_enc=np.array([aa.get(a, d) for a in labels])
+    if not to_tensor:
+        return labels_enc
     if onehot>0:
         labels_enc=inttensor(labels_enc)
         labels_enc=F.one_hot(labels_enc,num_classes=onehot).float()
@@ -140,28 +143,25 @@ def encode_npy(p, encoders):
 
     protein_data['atom_xyz']=tensor(p['atom_xyz'])
 
-    atom_types=[a[0] for a in p['atom_types']]
-    for aa in encoders['atom_encoders']:
-        o=max(aa['encoder'].values())+1 if aa['name'] in list_to_onehot else 0
-        protein_data[aa['name']] = encode_labels(atom_types,aa['encoder'],o)
-    
-    if encoders.get('atomname_encoders') != None:
-        for aa in encoders.get('atomname_encoders'):
-            o=max(aa['encoder'].values())+1 if aa['name'] in list_to_onehot else 0
-            protein_data[aa['name']] = encode_labels(p['atom_types'],aa['encoder'],o)
-
-    if encoders.get('residue_encoders') != None:
-        for la in encoders['residue_encoders']:
-            o=max(la['encoder'].values())+1 if la['name'] in list_to_onehot else 0
-            protein_data[la['name']] = encode_labels(p['atom_resnames'],la['encoder'],o)    
-
-    mask=torch.ones(protein_data['atom_xyz'].shape[0], dtype=bool, device='cuda') # to mask H atoms, for example
-    masks=[x for x in protein_data.keys() if 'mask' in x]
-    for key in masks:
-        mask=mask*protein_data.pop(key)
+    mask=1 # to mask H atoms, for example
+    for key in encoders:
+        for aa in encoders[key]:
+            if 'mask' in aa['name']:
+                mask*=encode_labels(p[key],aa['encoder'],0, to_tensor=False)
     mask=(mask>0)
-    for key in protein_data:
-        protein_data[key]=protein_data[key][mask]
+    for key in p:
+        p[key]=p[key][mask]
+
+    for key in encoders:
+        for aa in encoders[key]:
+            if 'mask' in aa['name']:
+                continue
+            o=max(aa['encoder'].values())+1 if aa['name'] in list_to_onehot else 0
+            enc=encode_labels(p[key],aa['encoder'],o)
+            if aa['name'] in protein_data:
+                protein_data[aa['name']]=torch.cat((protein_data[aa['name']],enc), dim=1)
+            else:
+                protein_data[aa['name']] = enc
     return protein_data
 
 def load_protein_pair(filename, encoders, chains1, chains2=None):

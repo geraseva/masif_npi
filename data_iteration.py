@@ -115,10 +115,14 @@ def save_protein_batch_single(protein_pair_id, P, save_path, pdb_idx):
     else:
         labels = F.one_hot(P["labels"],predictions.shape[1]) if P["labels"] is not None else 0.0 * predictions    
     
-    coloring = torch.cat([inputs.to('cpu'), embedding.to('cpu'), predictions.to('cpu'), labels.to('cpu')], axis=1)
+    np.savez(f'{save_path}/{pdb_id}.npz', 
+             coords=numpy(xyz),
+             inputs=numpy(inputs),
+             embeddings=numpy(embedding),
+             predictions=numpy(predictions),
+             labels=numpy(labels)
+            )
 
-    np.save(f'{save_path}/{pdb_id}_predcoords', numpy(xyz))
-    np.save(f"{save_path}/{pdb_id}_predfeatures_emb{emb_id}", numpy(coloring))
 
 
 def compute_loss(args, P1, P2):

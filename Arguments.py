@@ -232,43 +232,43 @@ def parse_train():
     if args.encoders=={}:
         if args.npi:
             if args.na=='DNA':
-                args.encoders['residue_encoders']=[{'name': 'atom_res',
+                args.encoders['atom_resnames']=[{'name': 'atom_res',
                                                  'encoder': {'DA':1, "DG": 2, "DC":3, "DT":4, '-':0}
                                                  }]
             elif args.na=='RNA':
-                args.encoders['residue_encoders']=[{'name': 'atom_res',
+                args.encoders['atom_resnames']=[{'name': 'atom_res',
                                                  'encoder': {'A':1, "G": 2, "C":3, "U":4, '-':0 }
                                                  }]
             elif args.na=='NA':
-                args.encoders['residue_encoders']=[{'name': 'atom_res',
+                args.encoders['atom_resnames']=[{'name': 'atom_res',
                                                  'encoder': {'DA':1, "DG": 2, "DC":3, "DT":4, 
                                                  'A':1, "G": 2, "C":3, "U":4, '-':0 }
                                                  }]
         else:
-            args.encoders['residue_encoders']=[{'name': 'atom_res',
+            args.encoders['atom_resnames']=[{'name': 'atom_res',
                                                  'encoder': {'-':1 }
                                             }]
         if args.search and args.na!='protein': 
-            args.encoders['atom_encoders']=[{'name': 'atom_types',
+            args.encoders['atom_types']=[{'name': 'atom_types',
                                                  'encoder': {"C": 0, "H": 1, "O": 2, "N": 3, "S": 4, "P": 5, '-': 4 }},
                                             {'name': 'atom_rad',
                                                  'encoder': {'H': 110, 'C': 170, 'N': 155, 'O': 152, '-': 180}
                                             }]
         else:
-            args.encoders['atom_encoders']=[{'name': 'atom_types',
+            args.encoders['atom_types']=[{'name': 'atom_types',
                                                  'encoder': {"C": 0, "H": 1, "O": 2, "N": 3, '-': 4 }},
                                             {'name': 'atom_rad',
                                                  'encoder': {'H': 110, 'C': 170, 'N': 155, 'O': 152, '-': 180}
                                             }]
         if args.no_h:
-            for encoder in args.encoders['atom_encoders']:
+            for encoder in args.encoders['atom_types']:
                 val=encoder['encoder'].pop('H')
                 if encoder['name']=='atom_rad':
                     continue
                 for key in encoder['encoder']:
                     if encoder['encoder'][key]>val:
                         encoder['encoder'][key]-=1 
-            args.encoders['atom_encoders'].append({'name': 'mask',
+            args.encoders['atom_types'].append({'name': 'mask',
                                                    'encoder': {"H": 0, "-": 1}})
     if args.threshold==None:
         if args.search:
