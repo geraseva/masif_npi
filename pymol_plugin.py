@@ -85,7 +85,7 @@ def charge_color(charges):
     return mycolor
 
 
-def load_npy(
+def load_vector(
     filename, emb_num=1, color="white", dotSize=0.2, in_channels=16, emb_dims=8, thr=0.5):
 
     data=np.load(filename)
@@ -168,6 +168,22 @@ def load_npy(
 
     return 0
     # Draw surface charges.
-    
 
+def load_npy(filename, dotSize=0.2):
+
+    data=np.load(filename)
+
+    name = "predictions"
+    obj = []
+    color_array = charge_color(data["preds"])
+    for v_ix, vert in enumerate(data['coords']):
+        obj.extend(color_array[v_ix])
+        obj.extend([SPHERE, vert[0], vert[1], vert[2], dotSize])
+    cmd.load_cgo(obj, name, 1.0)
+
+    return 0
+    
 cmd.extend("loadnpy", load_npy)
+cmd.extend("load_vector", load_vector)
+
+
