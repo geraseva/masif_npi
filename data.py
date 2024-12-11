@@ -230,6 +230,11 @@ class PairData:
     def to(self, device):
         for key in self.keys:
             self._storage[key]=self._storage[key].to(device)
+
+    def detach(self):
+        for key in self.keys:
+            self._storage[key]=self._storage[key].detach()
+        return self
     
     def contiguous(self):
         for key in self.keys:
@@ -352,7 +357,7 @@ class NpiDataset(Dataset):
             ]
 
         if self.pre_filter is not None:
-            processed_dataset = [data if self.pre_filter(data) else None for data in processed_dataset]
+            processed_dataset = [data.detach() if self.pre_filter(data) else None for data in processed_dataset]
             processed_idx=[idx for i, idx in enumerate(processed_idx) if processed_dataset[i]!=None]
             processed_dataset=[x for x in processed_dataset if x!=None]            
         
@@ -395,6 +400,7 @@ class SurfacePrecompute(object):
         return "{}()".format(self.__class__.__name__)
 
 
+@torch.no_grad() 
 def get_threshold_labels(queries,batch_queries,source,batch_source,labels, threshold):
 
     x_i = LazyTensor(queries[:, None, :])  # (N, 1, D)
@@ -420,6 +426,7 @@ class LabelsFromAtoms(object):
         self.threshold=threshold
         self.single=single_protein
 
+    @torch.no_grad() 
     def __call__(self, protein_pair):
 
         if protein_pair['atom_xyz_p2'].shape[0]==0:
@@ -460,6 +467,7 @@ class GenerateMatchingLabels(object):
 
         self.threshold=threshold
 
+    @torch.no_grad() 
     def __call__(self, protein_pair):
 
         xyz1_i = protein_pair['xyz_p1']
@@ -490,6 +498,7 @@ class GenerateMatchingLabels(object):
 class RemoveSecondProtein(object):
     r"""Remove second protein information"""
 
+    @torch.no_grad() 
     def __call__(self, protein_pair):
 
         keys=[x for x in protein_pair.keys if '_p2' in x]
@@ -507,6 +516,7 @@ class RandomRotationPairAtoms(object):
 
         self.as_single=as_single
 
+    @torch.no_grad() 
     def __call__(self, data):
 
         R1 = torch.FloatTensor(Rotation.random().as_matrix()).to(data['xyz_p1'].device)
@@ -543,6 +553,7 @@ class CenterPairAtoms(object):
 
         self.as_single=as_single
 
+    @torch.no_grad() 
     def __call__(self, data):
         
         if self.as_single:
@@ -571,7 +582,7 @@ class CenterPairAtoms(object):
     def __repr__(self):
         return "{}()".format(self.__class__.__name__)
 
-
+@torch.no_grad()       
 def iface_valid_filter(protein_pair):
     labels1 = protein_pair['labels_p1'].reshape(-1)>0
     valid1 = (
