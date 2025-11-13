@@ -38,7 +38,7 @@ if __name__ == "__main__":
         from model import dMaSIF
         from data_iteration import iterate, CollateData, Compose
 
-        model_path = "models/" + args['experiment_name']
+        model_path = Path(__file__).parents[0] / "models/" / args['experiment_name']
         checkpoint=torch.load(model_path, map_location=args['device'])
         if checkpoint['net_args'].get('encoders')!=None:
             args['encoders']=checkpoint['net_args']['encoders']
