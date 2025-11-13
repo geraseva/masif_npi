@@ -309,11 +309,14 @@ def iterate(
 
     # Turn a list of dicts into a dict of lists:
     newdict = {}
-    for k, v in [(key, d[key]) for d in info for key in d]:
-        if k not in newdict:
-            newdict[k] = [v]
-        else:
-            newdict[k].append(v)
+    keys=set([key  for d in info for key in d])
+    newdict={key: [] for key in set([k for d in info for k in d])}
+    for d in info:
+        for key in keys:
+            try:
+                newdict[key].append(d[key])
+            except KeyError:
+                newdict[key].append(np.nan)
 
     info = newdict
 

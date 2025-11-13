@@ -11,6 +11,7 @@ from Bio.SeqUtils import IUPACData
 from subprocess import Popen, PIPE
 #from multiprocessing import Pool
 from pykeops.torch import LazyTensor
+import copy
 from typing import (
     Any,
     Callable,
@@ -369,7 +370,7 @@ class NpiDataset(Dataset):
 
     def __getitem__(self, idx):
         
-        sample=self.data[idx]
+        sample=copy.deepcopy(self.data[idx].detach())
 
         if self.transform:
             sample = self.transform(sample)
